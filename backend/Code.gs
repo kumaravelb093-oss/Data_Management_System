@@ -40,31 +40,60 @@ function saveData(data) {
     }
 
     const timestamp = new Date();
+    const patientId = 'P-' + Date.now();
+    const record = {
+      entry_date_time: timestamp,
+      patient_id: patientId,
+      patient_name: data.name,
+      age: data.age,
+      gender: data.gender,
+      mobile_number: data.mobile,
+      village: data.village,
+      taluk: data.taluk,
+      district: data.district,
+      visit_date: data.visitDate || timestamp,
+      visit_type: data.visitType,
+      doctor_name: data.doctorName,
+      diagnosis: data.diagnosis,
+      treatment_procedure: data.treatment,
+      prescription_notes: data.prescription,
+      doctor_remarks: data.remarks,
+      image_type: data.imageType || (data.image ? 'Photo' : ''),
+      image_file_name: data.image ? data.image.name : '',
+      image_drive_link: imageUrl,
+      data_entered_by: data.enteredBy || 'Doctor',
+      last_updated_time: timestamp
+    };
+
     sheet.appendRow([
-      timestamp,
-      'P-' + Date.now(),
-      data.name,
-      data.age,
-      data.gender,
-      data.mobile,
-      data.village,
-      data.taluk,
-      data.district,
-      data.visitDate || timestamp,
-      data.visitType,
-      data.doctorName,
-      data.diagnosis,
-      data.treatment,
-      data.prescription,
-      data.remarks,
-      data.imageType || (data.image ? 'Photo' : ''),
-      data.image ? data.image.name : '',
-      imageUrl,
-      data.enteredBy || 'Doctor',
-      timestamp
+      record.entry_date_time,
+      record.patient_id,
+      record.patient_name,
+      record.age,
+      record.gender,
+      record.mobile_number,
+      record.village,
+      record.taluk,
+      record.district,
+      record.visit_date,
+      record.visit_type,
+      record.doctor_name,
+      record.diagnosis,
+      record.treatment_procedure,
+      record.prescription_notes,
+      record.doctor_remarks,
+      record.image_type,
+      record.image_file_name,
+      record.image_drive_link,
+      record.data_entered_by,
+      record.last_updated_time
     ]);
 
-    return { success: true, message: 'Data saved successfully!' };
+    return { 
+      success: true, 
+      message: 'Data saved successfully!', 
+      record: record 
+    };
   } catch (e) {
     return { success: false, message: e.toString() };
   }
