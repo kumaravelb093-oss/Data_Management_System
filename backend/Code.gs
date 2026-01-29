@@ -1,39 +1,82 @@
 /**
- * Ortho Clinic Management Backend
- * Handles Google Sheets as DB and Google Drive for image storage.
+ * GURU ORTHO CLINIC - ADVANCED DATA MANAGEMENT SYSTEM
+ * Backend: Google Apps Script
  */
 
 const CONFIG = {
-  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ',
   SHEET_NAME: 'Patients',
-  UPLOAD_FOLDER_ID: 'YOUR_FOLDER_ID_HERE'
+  IMAGES_FOLDER_NAME: 'Guru_Clinic_Clinical_Images'
 };
 
+/**
+ * 1. INITIALIZE SYSTEM
+ * Run this function ONCE in the Apps Script editor (Debug) to setup everything.
+ */
+function initializeSystem() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  
+  // A. Setup Sheet Headers
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+  }
+  
+  const headers = [
+    'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+    'Village', 'Taluk', 'District', 'Visit Date', 'Visit Type', 'Doctor Name',
+    'Diagnosis', 'Treatment / Procedure', 'Prescription Notes', 'Doctor Remarks',
+    'Image Type', 'Image File Name', 'Image Drive Link', 'Data Entered By', 'Last Updated Time'
+  ];
+  
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, headers.length).setBackground('#1A2B3C').setFontColor('#FFFFFF').setFontWeight('bold');
+  
+  // B. Setup Drive Folder
+  let folder;
+  const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  }
+  
+  Logger.log('System Initialized!');
+  Logger.log('Folder ID: ' + folder.getId());
+  Logger.log('Sheet URL: ' + ss.getUrl());
+  
+  return { 
+    folderId: folder.getId(), 
+    sheetUrl: ss.getUrl(),
+    message: "System Setup Complete. Columns and Folder are ready!" 
+  };
+}
+
+/**
+ * 2. WEB APP ENTRY
+ */
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Ortho Clinic Management')
+    .setTitle('Guru Ortho Portal')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 /**
- * Save patient data and images
+ * 3. SAVE PATIENT DATA
  */
 function saveData(data) {
   try {
-    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    const sheet = ss.getSheetByName(CONFIG.SHEET_NAME) || ss.insertSheet(CONFIG.SHEET_NAME);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     
-    // Set headers if new sheet
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
-        'Village', 'Taluk', 'District', 'Visit Date', 'Visit Type', 'Doctor Name',
-        'Diagnosis', 'Treatment / Procedure', 'Prescription Notes', 'Doctor Remarks',
-        'Image Type', 'Image File Name', 'Image Drive Link', 'Data Entered By', 'Last Updated Time'
-      ]);
+    if (!sheet) {
+      initializeSystem();
+      sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     }
 
+    // Handle Image Upload
     let imageUrl = '';
     if (data.image && data.image.base64) {
       imageUrl = uploadToDrive(data.image.base64, data.image.name, data.image.type);
@@ -41,6 +84,7 @@ function saveData(data) {
 
     const timestamp = new Date();
     const patientId = 'P-' + Date.now();
+    
     const record = {
       entry_date_time: timestamp,
       patient_id: patientId,
@@ -53,57 +97,49 @@ function saveData(data) {
       district: data.district,
       visit_date: data.visitDate || timestamp,
       visit_type: data.visitType,
-      doctor_name: data.doctorName,
+      doctor_name: data.doctorName || 'Dr. Guru',
       diagnosis: data.diagnosis,
       treatment_procedure: data.treatment,
       prescription_notes: data.prescription,
       doctor_remarks: data.remarks,
-      image_type: data.imageType || (data.image ? 'Photo' : ''),
+      image_type: data.image ? 'Clinical Photo' : 'No Image',
       image_file_name: data.image ? data.image.name : '',
       image_drive_link: imageUrl,
-      data_entered_by: data.enteredBy || 'Doctor',
+      data_entered_by: data.enteredBy || 'Staff',
       last_updated_time: timestamp
     };
 
+    // Append to sheet
     sheet.appendRow([
-      record.entry_date_time,
-      record.patient_id,
-      record.patient_name,
-      record.age,
-      record.gender,
-      record.mobile_number,
-      record.village,
-      record.taluk,
-      record.district,
-      record.visit_date,
-      record.visit_type,
-      record.doctor_name,
-      record.diagnosis,
-      record.treatment_procedure,
-      record.prescription_notes,
-      record.doctor_remarks,
-      record.image_type,
-      record.image_file_name,
-      record.image_drive_link,
-      record.data_entered_by,
-      record.last_updated_time
+      record.entry_date_time, record.patient_id, record.patient_name, record.age, record.gender, record.mobile_number,
+      record.village, record.taluk, record.district, record.visit_date, record.visit_type, record.doctor_name,
+      record.diagnosis, record.treatment_procedure, record.prescription_notes, record.doctor_remarks,
+      record.image_type, record.image_file_name, record.image_drive_link, record.data_entered_by, record.last_updated_time
     ]);
 
     return { 
       success: true, 
-      message: 'Data saved successfully!', 
+      message: 'Assessment Locked Successfully!', 
       record: record 
     };
   } catch (e) {
-    return { success: false, message: e.toString() };
+    return { success: false, message: 'System Error: ' + e.toString() };
   }
 }
 
 /**
- * Upload base64 image to Google Drive
+ * 4. UPLOAD LOGIC
  */
 function uploadToDrive(base64Data, fileName, contentType) {
-  const folder = DriveApp.getFolderById(CONFIG.UPLOAD_FOLDER_ID);
+  let folder;
+  const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  }
+  
   const decoded = Utilities.base64Decode(base64Data.split(',')[1]);
   const blob = Utilities.newBlob(decoded, contentType, fileName);
   const file = folder.createFile(blob);
@@ -112,17 +148,19 @@ function uploadToDrive(base64Data, fileName, contentType) {
 }
 
 /**
- * Fetch latest records for dashboard
+ * 5. FETCH RECORDS
  */
 function getRecords() {
   try {
-    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     if (!sheet) return [];
     
     const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+    
     const headers = data[0];
-    const rows = data.slice(1).reverse(); // Latest first
+    const rows = data.slice(1).reverse(); // Newest first
     
     return rows.map(row => {
       let obj = {};
@@ -136,6 +174,7 @@ function getRecords() {
       return obj;
     });
   } catch (e) {
+    Logger.log('Fetch Error: ' + e.toString());
     return [];
   }
 }
