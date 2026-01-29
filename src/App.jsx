@@ -27,7 +27,11 @@ import {
   ArrowRight,
   Eye,
   Download,
-  Printer
+  Printer,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -61,7 +65,8 @@ const gas = window.google?.script?.run || {
     console.log('Mock: Fetching records');
     setTimeout(() => resolve([
       { entry_date_time: new Date().toISOString(), patient_name: 'Mrs.Indrani', age: 48, diagnosis: 'Osteoarthritis Knee', image_drive_link: '#', visit_type: 'New', gender: 'Female', mobile_number: '9876543210', village: 'Village A', taluk: 'Taluk X', patient_id: 'P-1' },
-      { entry_date_time: new Date(Date.now() - 86400000).toISOString(), patient_name: 'Mrs.Priya', age: 46, diagnosis: 'Lumbar Spondylosis', image_drive_link: '#', visit_type: 'Review', gender: 'Female', mobile_number: '9123456789', village: 'Village B', taluk: 'Taluk Y', patient_id: 'P-2' }
+      { entry_date_time: new Date(Date.now() - 86400000).toISOString(), patient_name: 'Mrs.Priya', age: 46, diagnosis: 'Lumbar Spondylosis', image_drive_link: '#', visit_type: 'Review', gender: 'Female', mobile_number: '9123456789', village: 'Village B', taluk: 'Taluk Y', patient_id: 'P-2' },
+      { entry_date_time: new Date(Date.now() - 172800000).toISOString(), patient_name: 'Mr.Dhivotham', age: 23, diagnosis: 'Sprain', image_drive_link: '#', visit_type: 'New', gender: 'Male', mobile_number: '9988776655', village: 'Village C', taluk: 'Taluk Z', patient_id: 'P-3' }
     ]), 1000);
   })
 };
@@ -103,7 +108,7 @@ const App = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-x-hidden">
-      {/* Dynamic Header */}
+      {/* Header */}
       <header className="sticky top-0 z-50 bg-[#1A2B3C] text-white px-5 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -111,7 +116,7 @@ const App = () => {
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight leading-none uppercase">Guru Ortho</h1>
-            <p className="text-[10px] font-bold text-emerald-400 mt-1 uppercase tracking-widest">Clinical Portal</p>
+            <p className="text-[10px] font-bold text-emerald-400 mt-1 uppercase tracking-widest leading-none">Management v2.0</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -124,12 +129,12 @@ const App = () => {
             onClick={() => setView('register')}
             className="bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all flex items-center gap-2"
           >
-            <Plus size={16} /> ADD NEW
+            <Plus size={16} /> NEW PATIENT
           </button>
         </div>
       </header>
 
-      {/* Content Area */}
+      {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 lg:p-12 max-w-7xl mx-auto w-full">
         <AnimatePresence mode="wait">
           {view === 'home' && (
@@ -146,9 +151,9 @@ const App = () => {
             <RegistrationForm
               key="reg"
               onSuccess={(savedRecord) => {
-                showNotification('Synced with Google Sheets');
+                showNotification('Patient Record Locked & Saved');
                 loadRecords();
-                setSelectedRecord(savedRecord); // Open view modal immediately
+                setSelectedRecord(savedRecord);
                 setView('home');
               }}
               onError={(err) => showNotification(err, 'error')}
@@ -167,18 +172,20 @@ const App = () => {
         )}
       </AnimatePresence>
 
-      {/* Notification Toast */}
+      {/* Notification */}
       <AnimatePresence>
         {notification && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className={`fixed bottom-6 inset-x-6 md:inset-x-auto md:right-8 p-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3 text-white z-[100] ${notification.type === 'error' ? 'bg-rose-500' : 'bg-[#10B981]'
+            exit={{ opacity: 0, scale: 0.9, y: 30 }}
+            className={`fixed bottom-8 inset-x-8 md:inset-x-auto md:right-8 p-5 rounded-[28px] shadow-2xl flex items-center justify-center gap-4 text-white z-[100] ${notification.type === 'error' ? 'bg-rose-500' : 'bg-slate-900'
               }`}
           >
-            {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
-            <span className="font-black text-xs tracking-widest uppercase">{notification.msg}</span>
+            <div className={`p-2 rounded-xl bg-white/20`}>
+              {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} className="text-emerald-400" />}
+            </div>
+            <span className="font-black text-[11px] tracking-[0.1em] uppercase">{notification.msg}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -188,114 +195,191 @@ const App = () => {
 
 const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    visitType: 'All',
+    gender: 'All',
+    dateRange: 'All'
+  });
 
-  const filtered = records.filter(r =>
-    r.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.mobile_number?.includes(searchTerm)
-  );
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilters({
+      visitType: 'All',
+      gender: 'All',
+      dateRange: 'All'
+    });
+  };
+
+  const filtered = records.filter(r => {
+    const matchesSearch = r.patient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.diagnosis?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.mobile_number?.includes(searchTerm);
+
+    const matchesVisit = filters.visitType === 'All' || r.visit_type === filters.visitType;
+    const matchesGender = filters.gender === 'All' || r.gender === filters.gender;
+
+    let matchesDate = true;
+    if (filters.dateRange === 'Today') {
+      matchesDate = new Date(r.entry_date_time).toDateString() === new Date().toDateString();
+    } else if (filters.dateRange === 'Week') {
+      const weekAgo = new Date(Date.now() - 7 * 86400000);
+      matchesDate = new Date(r.entry_date_time) >= weekAgo;
+    }
+
+    return matchesSearch && matchesVisit && matchesGender && matchesDate;
+  });
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Patients" value={records.length} icon={<Users />} color="bg-blue-500" />
-        <StatCard label="New Visits" value={records.filter(r => r.visit_type === 'New').length} icon={<Activity />} color="bg-emerald-500" />
-        <StatCard label="Reports Uploaded" value={records.filter(r => r.image_drive_link && r.image_drive_link !== '#').length} icon={<FileText />} color="bg-violet-500" />
-        <div className="bg-white p-5 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div className="text-left">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Sync</p>
-            <p className="text-sm font-black text-slate-800 uppercase">Cloud Database</p>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {/* Search Header */}
+      <div className="bg-white p-4 rounded-[32px] border border-slate-100 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={20} />
+            <input
+              type="text"
+              placeholder="Search Name, Phone or Diagnosis..."
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-50 rounded-2xl outline-none focus:bg-white focus:border-emerald-300 transition-all text-sm font-bold placeholder:text-slate-200"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
-          <button onClick={onRefresh} className={`p-3 bg-slate-50 rounded-2xl text-slate-900 transition-all ${loading ? 'animate-spin' : ''}`}>
-            <RefreshCw size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Search Section */}
-      <div className="relative group shadow-sm">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
-        <input
-          type="text"
-          placeholder="Search Name, Mobile or Diagnosis..."
-          className="w-full pl-12 pr-4 py-5 bg-white border border-slate-100 rounded-[28px] outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all text-sm font-bold placeholder:text-slate-200"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Cards Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-2">
-          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Patient Records Feed</h4>
-          <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest italic animate-pulse">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" /> Auto-Updated
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map((record, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              key={i}
-              className="bg-white p-6 rounded-[36px] border border-slate-50 shadow-sm hover:shadow-2xl transition-all group"
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border transition-all ${showFilters ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300'
+                }`}
             >
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-slate-100 rounded-[22px] flex items-center justify-center font-black text-slate-400 text-xl group-hover:bg-emerald-500 group-hover:text-white transition-all transform group-hover:rotate-6">
-                    {record.patient_name?.charAt(0)}
-                  </div>
-                  <div>
-                    <h5 className="font-black text-slate-800 text-lg leading-tight break-words">{record.patient_name}</h5>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{record.visit_type} • {record.age}y / {record.gender}</p>
-                  </div>
-                </div>
-              </div>
+              <Filter size={16} /> Filters
+              {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-4 bg-rose-50 border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-rose-500 hover:text-white transition-all"
+            >
+              <RotateCcw size={16} /> Clear
+            </button>
+          </div>
+        </div>
 
-              <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100 group-hover:bg-emerald-50 transition-colors">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Diagnosis</p>
-                <p className="text-sm font-bold text-slate-700 line-clamp-2 leading-relaxed">
-                  {record.diagnosis || 'Checkup Pending'}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => onViewRecord(record)}
-                  className="flex-1 p-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500 transition-all shadow-lg shadow-slate-900/10"
-                >
-                  <Eye size={16} /> Open
-                </button>
-                {record.image_drive_link && record.image_drive_link !== '#' && (
-                  <a
-                    href={record.image_drive_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-3.5 bg-emerald-100 text-emerald-600 rounded-2xl hover:bg-emerald-200 transition-all"
-                  >
-                    <Camera size={18} />
-                  </a>
-                )}
+        {/* Advanced Filters */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden border-t border-slate-50 pt-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FilterSelect
+                  label="Visit Nature"
+                  value={filters.visitType}
+                  options={['All', 'New', 'Review']}
+                  onChange={v => setFilters({ ...filters, visitType: v })}
+                />
+                <FilterSelect
+                  label="Patient Gender"
+                  value={filters.gender}
+                  options={['All', 'Male', 'Female', 'Other']}
+                  onChange={v => setFilters({ ...filters, gender: v })}
+                />
+                <FilterSelect
+                  label="Date Range"
+                  value={filters.dateRange}
+                  options={['All', 'Today', 'Week']}
+                  onChange={v => setFilters({ ...filters, dateRange: v })}
+                />
               </div>
             </motion.div>
-          ))}
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex flex-col">
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Results</h4>
+          <p className="text-xl font-black text-slate-900 tracking-tight">{filtered.length} Assessments found</p>
         </div>
+        <button onClick={onRefresh} className={`p-4 bg-white border border-slate-100 rounded-2xl text-slate-900 hover:bg-emerald-50 hover:text-emerald-600 transition-all ${loading ? 'animate-spin' : ''}`}>
+          <RefreshCw size={20} />
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filtered.map((record, i) => (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            key={i}
+            className="bg-white p-6 rounded-[36px] border border-slate-50 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden"
+          >
+            {/* Visual indicator for Visit Type */}
+            <div className={`absolute top-0 right-10 w-12 h-1 ${record.visit_type === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+
+            <div className="flex gap-4 mb-6">
+              <div className="w-14 h-14 bg-slate-50 rounded-[22px] flex items-center justify-center font-black text-slate-300 text-xl group-hover:bg-slate-900 group-hover:text-white transition-all transform group-hover:rotate-6">
+                {record.patient_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h5 className="font-black text-slate-800 text-lg leading-tight truncate">{record.patient_name}</h5>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em] mt-1">{record.age}y / {record.gender} • {record.visit_type}</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50/50 rounded-2xl p-4 mb-6 border border-slate-50">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none italic">Diagnosis</p>
+              <p className="text-sm font-bold text-slate-700 line-clamp-1 truncate leading-tight">
+                {record.diagnosis || 'Observation Pending'}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-tight">
+                <Clock size={12} className="text-emerald-500" />
+                {new Date(record.entry_date_time).toLocaleDateString()}
+              </div>
+              <button
+                onClick={() => onViewRecord(record)}
+                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-all"
+              >
+                <Eye size={14} /> Open
+              </button>
+            </div>
+          </motion.div>
+        ))}
+
+        {filtered.length === 0 && !loading && (
+          <div className="col-span-1 md:col-span-2 lg:col-span-3 py-24 text-center bg-white rounded-[40px] border border-dashed border-slate-100 flex flex-col items-center justify-center gap-4">
+            <div className="p-8 bg-slate-50 rounded-full text-slate-100">
+              <Search size={64} />
+            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching assessments in this view</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );
 };
 
-const StatCard = ({ label, value, icon, color }) => (
-  <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center gap-5">
-    <div className={`p-4 rounded-2xl text-white ${color} shadow-lg shadow-current/20`}>
-      {React.cloneElement(icon, { size: 24 })}
-    </div>
-    <div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-      <p className="text-2xl font-black text-slate-800">{value}</p>
+const FilterSelect = ({ label, value, options, onChange }) => (
+  <div className="space-y-2">
+    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{label}</label>
+    <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+      {options.map(opt => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all ${value === opt ? 'bg-white shadow-sm text-slate-900 border border-slate-100' : 'text-slate-400 hover:text-slate-600'
+            }`}
+        >
+          {opt}
+        </button>
+      ))}
     </div>
   </div>
 );
@@ -308,61 +392,68 @@ const Modal = ({ record, onClose }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md"
+        className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-md"
       />
       <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        initial={{ scale: 0.9, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]"
+        exit={{ scale: 0.9, opacity: 0, y: 30 }}
+        className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh]"
       >
-        <div className="bg-slate-900 p-8 text-white flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white font-black text-xl">
+        <div className="bg-[#1A2B3C] p-8 text-white flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-black text-2xl">
               {record.patient_name?.[0]}
             </div>
             <div>
-              <h3 className="text-xl font-black tracking-tight">{record.patient_name}</h3>
-              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{record.patient_id} • {record.visit_type} Entry</p>
+              <h3 className="text-2xl font-black tracking-tight leading-none mb-1 uppercase">{record.patient_name}</h3>
+              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest opacity-80">{record.patient_id} • CLINICAL ASSESSMENT</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-white/10 rounded-2xl hover:bg-white/20 transition-all"><X size={20} /></button>
+          <button onClick={onClose} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><X size={24} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scroll">
-          {/* Section: Overview */}
-          <div className="grid grid-cols-2 gap-8 pb-8 border-b border-slate-50">
-            <DetailItem label="Mobile" value={record.mobile_number} icon={<Phone />} />
-            <DetailItem label="Age / Gender" value={`${record.age}y / ${record.gender}`} icon={<User />} />
-            <DetailItem label="Location" value={`${record.village}, ${record.taluk}, ${record.district}`} icon={<MapPin />} />
-            <DetailItem label="Visit Date" value={new Date(record.visit_date).toLocaleDateString()} icon={<Calendar />} />
+        <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scroll">
+          {/* Section: Quick Bio */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-10 border-b border-slate-50">
+            <DetailItem label="Mobile Contact" value={record.mobile_number} icon={<Phone />} />
+            <DetailItem label="Age / Gender" value={`${record.age}y • ${record.gender}`} icon={<User />} />
+            <DetailItem label="Visit Nature" value={record.visit_type} icon={<Clock />} />
+            <DetailItem label="Entry Point" value={new Date(record.entry_date_time).toLocaleDateString()} icon={<Calendar />} />
+            <div className="col-span-2">
+              <DetailItem label="Permanent Address" value={`${record.village}, ${record.taluk}, ${record.district}`} icon={<MapPin />} />
+            </div>
           </div>
 
-          {/* Section: Clinical */}
-          <div className="space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Clinical Record</h4>
+          {/* Section: Clinical Detail */}
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Section Case History</h4>
+              <div className="h-0.5 flex-1 bg-slate-50 ml-4 rounded-full" />
+            </div>
+
             <div className="space-y-6">
-              <div className="bg-blue-50/50 p-5 rounded-3xl border border-blue-50">
-                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Medical Diagnosis</p>
-                <p className="text-base font-bold text-slate-800">{record.diagnosis || 'None entered'}</p>
-              </div>
-              <div className="bg-violet-50/50 p-5 rounded-3xl border border-violet-50">
-                <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Treatment / Procedure</p>
-                <p className="text-base font-bold text-slate-800">{record.treatment_procedure || 'None entered'}</p>
-              </div>
+              <ViewCard label="Diagnosed Clinical Condition" value={record.diagnosis} color="bg-blue-50 text-blue-900 border-blue-100" accent="bg-blue-500" />
+              <ViewCard label="Treatment / Procedure Advice" value={record.treatment_procedure} color="bg-violet-50 text-violet-900 border-violet-100" accent="bg-violet-500" />
               {record.prescription_notes && (
-                <div className="bg-emerald-50/50 p-5 rounded-3xl border border-emerald-50">
-                  <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Prescription</p>
-                  <p className="text-base font-bold text-slate-800">{record.prescription_notes}</p>
-                </div>
+                <ViewCard label="Active Prescriptions" value={record.prescription_notes} color="bg-emerald-50 text-emerald-900 border-emerald-100" accent="bg-emerald-500" />
+              )}
+              {record.doctor_remarks && (
+                <ViewCard label="Staff / Doctor Remarks" value={record.doctor_remarks} color="bg-amber-50 text-amber-900 border-amber-100" accent="bg-amber-500" />
               )}
             </div>
           </div>
 
-          {/* Section: System */}
-          <div className="pt-4 border-t border-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex justify-between items-center">
-            <span>Entered By: {record.data_entered_by}</span>
-            <span>Ref: {new Date(record.entry_date_time).toLocaleString()}</span>
+          {/* Section: System Info */}
+          <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 flex flex-wrap gap-x-12 gap-y-4">
+            <div>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Registered by</p>
+              <p className="text-xs font-black text-slate-700 uppercase tracking-tight">{record.data_entered_by}</p>
+            </div>
+            <div>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Last Synced</p>
+              <p className="text-xs font-black text-slate-700 uppercase tracking-tight">{new Date(record.last_updated_time || record.entry_date_time).toLocaleString()}</p>
+            </div>
           </div>
         </div>
 
@@ -372,44 +463,60 @@ const Modal = ({ record, onClose }) => {
               href={record.image_drive_link}
               target="_blank"
               rel="noreferrer"
-              className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest text-center shadow-lg shadow-emerald-500/20"
+              className="flex-1 py-5 bg-[#1A2B3C] text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.1em] text-center shadow-2xl shadow-slate-900/40 hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
             >
-              View Drive Photo
+              <FileText size={18} /> Open Drive X-Ray
             </a>
           ) : (
-            <button disabled className="flex-1 py-4 bg-slate-200 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">No Image Attached</button>
+            <div className="flex-1 py-5 bg-slate-200 text-slate-400 rounded-[24px] font-black text-[11px] uppercase tracking-widest text-center cursor-not-allowed">Imaging Not Available</div>
           )}
-          <button onClick={() => window.print()} className="p-4 bg-white border border-slate-200 text-slate-900 rounded-2xl shadow-sm"><Printer size={20} /></button>
+          <button onClick={() => window.print()} className="p-5 bg-white border border-slate-200 text-slate-900 rounded-[24px] shadow-sm hover:shadow-lg transition-all"><Printer size={22} /></button>
         </div>
       </motion.div>
     </div>
   );
 };
 
+const ViewCard = ({ label, value, color, accent }) => (
+  <div className={`p-6 rounded-[28px] border relative ${color}`}>
+    <div className={`absolute top-6 left-0 w-1 h-6 rounded-r-full ${accent}`} />
+    <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-40 mb-2 leading-none">{label}</p>
+    <p className="text-base font-bold leading-relaxed">{value || 'No clinical data provided'}</p>
+  </div>
+);
+
 const DetailItem = ({ label, value, icon }) => (
   <div className="flex gap-4">
-    <div className="shrink-0 p-3 bg-slate-100 rounded-xl text-slate-500 h-fit">{React.cloneElement(icon, { size: 16 })}</div>
+    <div className="shrink-0 p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 h-fit">{React.cloneElement(icon, { size: 16 })}</div>
     <div>
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
-      <p className="text-sm font-bold text-slate-800">{value || 'N/A'}</p>
+      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 leading-none">{label}</p>
+      <p className="text-sm font-black text-slate-800 tracking-tight">{value || 'Not Specified'}</p>
     </div>
   </div>
 );
 
 const RegistrationForm = ({ onSuccess, onError }) => {
-  const [formData, setFormData] = useState({
+  const initialForm = {
     name: '', age: '', gender: 'Male', mobile: '',
     village: '', taluk: '', district: '',
     visitDate: new Date().toISOString().split('T')[0],
     visitType: 'New', doctorName: '',
     diagnosis: '', treatment: '', prescription: '', remarks: '',
     enteredBy: ''
-  });
+  };
+
+  const [formData, setFormData] = useState(initialForm);
   const [image, setImage] = useState(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  const clearForm = () => {
+    setFormData(initialForm);
+    setImage(null);
+    if (isCapturing) toggleCamera();
+  };
 
   const toggleCamera = async () => {
     if (isCapturing) {
@@ -423,7 +530,7 @@ const RegistrationForm = ({ onSuccess, onError }) => {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (err) {
-        onError('Unable to access camera');
+        onError('Camera Access Denied');
         setIsCapturing(false);
       }
     }
@@ -456,132 +563,136 @@ const RegistrationForm = ({ onSuccess, onError }) => {
         setSubmitting(false);
       }
     } catch (err) {
-      onError('Submission failed');
+      onError('Synchronization Error');
       setSubmitting(false);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="pb-20 max-w-4xl mx-auto">
-      <div className="mb-10 text-center">
-        <div className="w-16 h-16 bg-[#1A2B3C] rounded-3xl mx-auto mb-4 flex items-center justify-center text-white shadow-xl shadow-slate-900/10">
-          <UserPlus size={32} />
+    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="pb-24 max-w-4xl mx-auto">
+      {/* Form Header with Clear Bit */}
+      <div className="mb-12 flex flex-col items-center">
+        <div className="w-20 h-20 bg-[#1A2B3C] rounded-[32px] mb-6 flex items-center justify-center text-white shadow-2xl shadow-slate-900/20 relative">
+          <UserPlus size={40} />
+          <button
+            type="button"
+            onClick={clearForm}
+            className="absolute -top-2 -right-2 p-3 bg-rose-500 text-white rounded-2xl shadow-lg shadow-rose-500/30 hover:bg-rose-600 transition-all scale-90"
+            title="Clear Everything"
+          >
+            <RotateCcw size={18} />
+          </button>
         </div>
-        <h2 className="text-3xl font-black text-slate-800 tracking-tight uppercase">New Patient</h2>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 px-6">Entry will sync automatically with Sheets</p>
+        <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Patient Entry</h2>
+        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-3">Advanced Clinical Enrichment Data</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1: Identity (Blue) */}
-        <section className="bg-blue-50/50 p-6 md:p-8 rounded-[40px] border border-blue-100/50 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-500 text-white rounded-xl shadow-md"><User size={20} /></div>
-            <h4 className="text-xs font-black text-blue-900 uppercase tracking-widest">01. Identity</h4>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <InputField label="Full Name" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} color="blue" />
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Identity & Contact (Blue) */}
+        <Section title="01. Identity & Contact" color="blue" icon={<User />}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <InputField label="Patient Legal Name" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} color="blue" />
             <div className="grid grid-cols-2 gap-5">
-              <InputField label="Age" type="number" value={formData.age} onChange={v => setFormData({ ...formData, age: v })} color="blue" />
+              <InputField label="Patient Age" type="number" value={formData.age} onChange={v => setFormData({ ...formData, age: v })} color="blue" />
               <div>
-                <label className="text-[10px] font-black text-blue-400 uppercase ml-1">Gender</label>
-                <select className="w-full mt-2 p-4 bg-white border border-blue-200 rounded-2xl font-black text-xs text-blue-900 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all uppercase" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
+                <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Gender</label>
+                <select className="w-full mt-2.5 p-4.5 bg-white border border-blue-100 rounded-2xl font-black text-xs text-blue-900 outline-none focus:ring-4 focus:ring-blue-500/5 transition-all uppercase" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
                   <option>Male</option><option>Female</option><option>Other</option>
                 </select>
               </div>
             </div>
           </div>
-          <InputField label="Mobile Number" icon={<Phone size={14} />} value={formData.mobile} onChange={v => setFormData({ ...formData, mobile: v })} color="blue" />
-        </section>
+          <InputField label="Primary Mobile Member" icon={<Phone size={14} />} value={formData.mobile} onChange={v => setFormData({ ...formData, mobile: v })} color="blue" />
+        </Section>
 
-        {/* Section 2: Clinical (Violet) */}
-        <section className="bg-violet-50/50 p-6 md:p-8 rounded-[40px] border border-violet-100/50 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-violet-600 text-white rounded-xl shadow-md"><ClipboardList size={20} /></div>
-            <h4 className="text-xs font-black text-violet-900 uppercase tracking-widest">02. Clinical Note</h4>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Clinical Nature (Violet) */}
+        <Section title="02. Clinical Nature" color="violet" icon={<ClipboardList />}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="text-[10px] font-black text-violet-400 uppercase ml-1">Visit Type</label>
-              <div className="flex bg-white p-1 rounded-2xl mt-2 border border-violet-200">
-                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'New' })} className={`flex-1 py-3 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'New' ? 'bg-violet-600 text-white shadow-lg' : 'text-violet-300'}`}>NEW VISIT</button>
-                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'Review' })} className={`flex-1 py-3 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'Review' ? 'bg-violet-600 text-white shadow-lg' : 'text-violet-300'}`}>REVIEW</button>
+              <label className="text-[10px] font-black text-violet-400 uppercase ml-2 tracking-widest leading-none block mb-2.5">Visit Classification</label>
+              <div className="flex bg-white p-1.5 rounded-2xl border border-violet-100 gap-1.5">
+                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'New' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'New' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300 hover:text-violet-500'}`}>NEW CASE</button>
+                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'Review' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'Review' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300 hover:text-violet-500'}`}>REVIEW VISIT</button>
               </div>
             </div>
-            <InputField label="Visit Date" type="date" value={formData.visitDate} onChange={v => setFormData({ ...formData, visitDate: v })} color="violet" />
+            <InputField label="Observation Date" type="date" value={formData.visitDate} onChange={v => setFormData({ ...formData, visitDate: v })} color="violet" />
           </div>
-          <TextAreaField label="Medical Diagnosis" value={formData.diagnosis} onChange={v => setFormData({ ...formData, diagnosis: v })} color="violet" />
-          <TextAreaField label="Treatment / Procedure" value={formData.treatment} onChange={v => setFormData({ ...formData, treatment: v })} color="violet" />
-          <TextAreaField label="Prescription / Medicines" value={formData.prescription} onChange={v => setFormData({ ...formData, prescription: v })} color="violet" />
-        </section>
+          <TextAreaField label="Clinical Diagnosis (Condition)" value={formData.diagnosis} onChange={v => setFormData({ ...formData, diagnosis: v })} color="violet" />
+          <TextAreaField label="Procedure / Treatment Summary" value={formData.treatment} onChange={v => setFormData({ ...formData, treatment: v })} color="violet" />
+          <TextAreaField label="Advanced Prescription / Notes" value={formData.prescription} onChange={v => setFormData({ ...formData, prescription: v })} color="violet" />
+        </Section>
 
-        {/* Section 4: Imaging (Rose) */}
-        <section className="bg-rose-50/50 p-6 md:p-8 rounded-[40px] border border-rose-100/50 space-y-6 text-center">
-          <div className="flex items-center gap-3 mb-4 text-left">
-            <div className="p-2 bg-rose-500 text-white rounded-xl shadow-md"><Camera size={20} /></div>
-            <h4 className="text-xs font-black text-rose-900 uppercase tracking-widest">03. X-Ray Capture</h4>
-          </div>
-          <div className="aspect-square max-w-[320px] mx-auto bg-white rounded-[40px] border-4 border-dashed border-rose-200 overflow-hidden relative group cursor-pointer shadow-inner" onClick={!image && !isCapturing ? toggleCamera : undefined}>
+        {/* Medical Imaging (Rose) */}
+        <Section title="03. Radiography / Imaging" color="rose" icon={<Camera />}>
+          <div className="aspect-square max-w-[340px] mx-auto bg-white rounded-[48px] border-4 border-dashed border-rose-100 overflow-hidden relative group cursor-pointer shadow-xl shadow-rose-500/5 transition-all hover:scale-[1.02]" onClick={!image && !isCapturing ? toggleCamera : undefined}>
             {isCapturing ? (
-              <div className="w-full h-full">
+              <div className="w-full h-full relative">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                <div className="absolute bottom-6 inset-x-0 flex justify-center gap-4">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); takePhoto(); }} className="w-14 h-14 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"><Camera size={24} /></button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className="w-14 h-14 bg-white text-rose-500 border border-rose-100 rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"><X size={24} /></button>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-10 inset-x-0 flex justify-center gap-6">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); takePhoto(); }} className="w-18 h-18 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-2xl active:scale-75 transition-transform border-4 border-white/20"><Camera size={32} /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className="w-18 h-18 bg-white text-rose-500 rounded-full flex items-center justify-center shadow-2xl active:scale-75 transition-transform"><X size={32} /></button>
                 </div>
               </div>
             ) : image ? (
               <div className="w-full h-full relative">
                 <img src={image.base64} className="w-full h-full object-cover" alt="Captured" />
-                <button type="button" onClick={(e) => { e.stopPropagation(); setImage(null); }} className="absolute bottom-4 right-4 p-3 bg-white text-rose-500 rounded-2xl shadow-xl font-black text-[9px] uppercase tracking-widest">Retake</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setImage(null); }} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-900/90 text-white rounded-2xl shadow-xl font-black text-[10px] uppercase tracking-widest backdrop-blur-md">Discard & Retake</button>
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
-                <div className="p-6 bg-rose-50 text-rose-300 rounded-[30px] group-hover:text-rose-500 transition-all">
-                  <Camera size={44} />
+              <div className="w-full h-full flex flex-col items-center justify-center gap-5 p-10">
+                <div className="p-8 bg-rose-50 text-rose-200 rounded-[40px] transition-colors group-hover:bg-rose-100 group-hover:text-rose-500">
+                  <Camera size={56} />
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-900">Open Camera</p>
-                  <p className="text-[9px] font-bold text-rose-400 mt-1 uppercase">Back camera ready</p>
+                <div className="text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-900">Start Capturing</p>
+                  <p className="text-[9px] font-bold text-rose-300 mt-2 uppercase tracking-widest leading-none">Auto-Sync Enabled</p>
                 </div>
               </div>
             )}
             <canvas ref={canvasRef} width="400" height="300" className="hidden" />
           </div>
-        </section>
+        </Section>
 
-        {/* Section 2: Address (Amber) */}
-        <section className="bg-amber-50/50 p-6 md:p-8 rounded-[40px] border border-amber-100/50 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-amber-500 text-white rounded-xl shadow-md"><MapPin size={20} /></div>
-            <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest">04. Address Details</h4>
+        {/* Location & Metadata (Amber) */}
+        <Section title="04. Domicile & Metadata" color="amber" icon={<MapPin />}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <InputField label="Native Village" value={formData.village} onChange={v => setFormData({ ...formData, village: v })} color="amber" />
+            <InputField label="Taluk Area" value={formData.taluk} onChange={v => setFormData({ ...formData, taluk: v })} color="amber" />
+            <InputField label="District Code" value={formData.district} onChange={v => setFormData({ ...formData, district: v })} color="amber" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <InputField label="Village" value={formData.village} onChange={v => setFormData({ ...formData, village: v })} color="amber" />
-            <InputField label="Taluk" value={formData.taluk} onChange={v => setFormData({ ...formData, taluk: v })} color="amber" />
-            <InputField label="District" value={formData.district} onChange={v => setFormData({ ...formData, district: v })} color="amber" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <InputField label="Consultation Remarks" value={formData.remarks} onChange={v => setFormData({ ...formData, remarks: v })} color="amber" />
+            <InputField label="Authorized Staff" value={formData.enteredBy} onChange={v => setFormData({ ...formData, enteredBy: v })} color="amber" />
           </div>
-          <InputField label="Doctor Remarks" value={formData.remarks} onChange={v => setFormData({ ...formData, remarks: v })} color="amber" />
-          <InputField label="Data Entered By" value={formData.enteredBy} onChange={v => setFormData({ ...formData, enteredBy: v })} color="amber" />
-        </section>
+        </Section>
 
-        {/* Final Submit */}
-        <div className="pt-4 px-2 pb-10">
+        {/* Action Button */}
+        <div className="pt-6 px-2 flex flex-col gap-4">
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-6 bg-slate-900 text-white rounded-[32px] font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-slate-900/40 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full py-7 bg-[#1A2B3C] text-white rounded-[36px] font-black uppercase tracking-[0.3em] text-sm shadow-2xl shadow-slate-900/40 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-4 group"
           >
             {submitting ? (
               <>
-                <RefreshCw size={20} className="animate-spin" />
-                <span>SYNCING TO SHEETS...</span>
+                <RefreshCw size={24} className="animate-spin" />
+                <span>COMMITTING TO SHEETS...</span>
               </>
             ) : (
               <>
-                <span>CONFIRM & SYNC RECORD</span>
-                <ArrowRight size={20} strokeWidth={3} />
+                <span>LEGALIZE & LOCK RECORD</span>
+                <ArrowRight size={24} strokeWidth={3} className="group-hover:translate-x-2 transition-transform" />
               </>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={clearForm}
+            className="w-full py-4 bg-transparent border-2 border-slate-200 text-slate-400 rounded-[32px] font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-slate-50 hover:text-slate-600 hover:border-slate-300"
+          >
+            Reset Form Data (Clear Bit)
           </button>
         </div>
       </form>
@@ -589,12 +700,45 @@ const RegistrationForm = ({ onSuccess, onError }) => {
   );
 };
 
+const Section = ({ title, color, icon, children }) => {
+  const styles = {
+    blue: "bg-blue-50/50 border-blue-100",
+    violet: "bg-violet-50/50 border-violet-100",
+    rose: "bg-rose-50/50 border-rose-100",
+    amber: "bg-amber-50/50 border-amber-100"
+  };
+  const iconStyles = {
+    blue: "bg-blue-500",
+    violet: "bg-violet-600",
+    rose: "bg-rose-500",
+    amber: "bg-amber-500"
+  };
+  const textStyles = {
+    blue: "text-blue-900",
+    violet: "text-violet-900",
+    rose: "text-rose-900",
+    amber: "text-amber-900"
+  };
+
+  return (
+    <section className={`p-8 md:p-10 rounded-[48px] border-2 border-white shadow-sm space-y-8 ${styles[color]}`}>
+      <div className="flex items-center gap-4 mb-2">
+        <div className={`p-3 text-white rounded-2xl shadow-xl shadow-current/10 ${iconStyles[color]}`}>{React.cloneElement(icon, { size: 20, strokeWidth: 3 })}</div>
+        <h4 className={`text-base font-black uppercase tracking-tight ${textStyles[color]}`}>{title}</h4>
+      </div>
+      <div className="space-y-6">
+        {children}
+      </div>
+    </section>
+  );
+};
+
 const InputField = ({ label, type = 'text', value, onChange, icon, required, color = "blue" }) => {
   const colors = {
-    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-300 ring-blue-500/10 focus:ring-4",
-    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-300 ring-amber-500/10 focus:ring-4",
-    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-300 ring-violet-500/10 focus:ring-4",
-    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-300 ring-rose-500/10 focus:ring-4"
+    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-200 ring-blue-500/5 focus:ring-8",
+    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-200 ring-amber-500/5 focus:ring-8",
+    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-200 ring-violet-500/5 focus:ring-8",
+    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-200 ring-rose-500/5 focus:ring-8"
   };
   const labelColors = {
     blue: "text-blue-400",
@@ -605,15 +749,15 @@ const InputField = ({ label, type = 'text', value, onChange, icon, required, col
 
   return (
     <div className="w-full">
-      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 flex items-center gap-1`}>
-        {icon} {label}
+      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 tracking-widest leading-none block mb-2.5`}>
+        {icon && React.cloneElement(icon)} {label}
       </label>
       <input
         type={type}
         required={required}
-        className={`w-full mt-2 p-4 bg-white border rounded-2xl font-black text-xs outline-none transition-all ${colors[color]}`}
+        className={`w-full p-4.5 bg-white border-2 rounded-[22px] font-black text-xs outline-none transition-all ${colors[color]}`}
         value={value}
-        placeholder={`ENTER ${label.toUpperCase()}...`}
+        placeholder={`TYPE ${label.toUpperCase()}...`}
         onChange={e => onChange(e.target.value)}
       />
     </div>
@@ -622,10 +766,10 @@ const InputField = ({ label, type = 'text', value, onChange, icon, required, col
 
 const TextAreaField = ({ label, value, onChange, color = "blue" }) => {
   const colors = {
-    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-300 ring-blue-500/10 focus:ring-4",
-    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-300 ring-amber-500/10 focus:ring-4",
-    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-300 ring-violet-500/10 focus:ring-4",
-    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-300 ring-rose-500/10 focus:ring-4"
+    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-200 ring-blue-500/5 focus:ring-8",
+    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-200 ring-amber-500/5 focus:ring-8",
+    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-200 ring-violet-500/5 focus:ring-8",
+    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-200 ring-rose-500/5 focus:ring-8"
   };
   const labelColors = {
     blue: "text-blue-400",
@@ -636,12 +780,12 @@ const TextAreaField = ({ label, value, onChange, color = "blue" }) => {
 
   return (
     <div className="w-full">
-      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2`}>{label}</label>
+      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 tracking-widest leading-none block mb-2.5`}>{label}</label>
       <textarea
-        rows={3}
-        className={`w-full mt-2 p-4 bg-white border rounded-2xl font-black text-xs outline-none transition-all ${colors[color]}`}
+        rows={4}
+        className={`w-full p-5 bg-white border-2 rounded-[28px] font-black text-xs outline-none transition-all ${colors[color]}`}
         value={value}
-        placeholder={`TYPE ${label.toUpperCase()}...`}
+        placeholder={`DESCRIBE ${label.toUpperCase()}...`}
         onChange={e => onChange(e.target.value)}
       />
     </div>
