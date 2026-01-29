@@ -270,8 +270,23 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden border-t border-slate-50 pt-4"
+              className="overflow-hidden border-t border-slate-50 pt-4 relative"
             >
+              <button
+                onClick={() => setShowFilters(false)}
+                className="absolute top-2 right-0 p-2 text-slate-300 hover:text-rose-500 transition-colors md:hidden"
+              >
+                <X size={18} />
+              </button>
+              <div className="flex items-center justify-between mb-4">
+                <h5 className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">Filter Parameters</h5>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="hidden md:flex items-center gap-1.5 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-widest transition-all"
+                >
+                  <X size={14} /> Close Section
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FilterSelect
                   label="Visit Nature"
