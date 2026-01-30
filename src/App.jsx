@@ -63,11 +63,7 @@ const gas = window.google?.script?.run || {
   }),
   getRecords: () => new Promise((resolve) => {
     console.log('Mock: Fetching records');
-    setTimeout(() => resolve([
-      { entry_date_time: new Date().toISOString(), patient_name: 'Mrs.Indrani', age: 48, diagnosis: 'Osteoarthritis Knee', image_drive_link: '#', visit_type: 'New', gender: 'Female', mobile_number: '9876543210', village: 'Village A', taluk: 'Taluk X', patient_id: 'P-1' },
-      { entry_date_time: new Date(Date.now() - 86400000).toISOString(), patient_name: 'Mrs.Priya', age: 46, diagnosis: 'Lumbar Spondylosis', image_drive_link: '#', visit_type: 'Review', gender: 'Female', mobile_number: '9123456789', village: 'Village B', taluk: 'Taluk Y', patient_id: 'P-2' },
-      { entry_date_time: new Date(Date.now() - 172800000).toISOString(), patient_name: 'Mr.Dhivotham', age: 23, diagnosis: 'Sprain', image_drive_link: '#', visit_type: 'New', gender: 'Male', mobile_number: '9988776655', village: 'Village C', taluk: 'Taluk Z', patient_id: 'P-3' }
-    ]), 1000);
+    setTimeout(() => resolve([]), 1000);
   })
 };
 
@@ -86,10 +82,16 @@ const App = () => {
     setLoading(true);
     try {
       if (window.google) {
-        google.script.run.withSuccessHandler((data) => {
-          setRecords(data);
-          setLoading(false);
-        }).getRecords();
+        google.script.run
+          .withSuccessHandler((data) => {
+            setRecords(data);
+            setLoading(false);
+          })
+          .withFailureHandler((err) => {
+            showNotification('Sync Error: ' + err.message, 'error');
+            setLoading(false);
+          })
+          .getRecords();
       } else {
         const data = await gas.getRecords();
         setRecords(data);
@@ -103,7 +105,7 @@ const App = () => {
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 5000); // 5 seconds for errors
   };
 
   return (
@@ -116,7 +118,7 @@ const App = () => {
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight leading-none uppercase">Guru Ortho</h1>
-            <p className="text-[10px] font-bold text-emerald-400 mt-1 uppercase tracking-widest leading-none">Management v2.0</p>
+            <p className="text-[10px] font-bold text-emerald-400 mt-1 uppercase tracking-widest leading-none">Management v2.1</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -172,7 +174,7 @@ const App = () => {
         )}
       </AnimatePresence>
 
-      {/* Notification */}
+      {/* Notification Toast */}
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -185,7 +187,8 @@ const App = () => {
             <div className={`p-2 rounded-xl bg-white/20`}>
               {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} className="text-emerald-400" />}
             </div>
-            <span className="font-black text-[11px] tracking-[0.1em] uppercase">{notification.msg}</span>
+            <span className="font-black text-[11px] tracking-[0.1em] uppercase leading-tight max-w-[200px]">{notification.msg}</span>
+            <button onClick={() => setNotification(null)} className="ml-2 opacity-50"><X size={14} /></button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -258,7 +261,7 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
               onClick={clearFilters}
               className="px-6 py-4 bg-rose-50 border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-rose-500 hover:text-white transition-all"
             >
-              <RotateCcw size={16} /> Clear
+              <RotateCcw size={16} /> Restore
             </button>
           </div>
         </div>
@@ -284,7 +287,7 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
                   onClick={() => setShowFilters(false)}
                   className="hidden md:flex items-center gap-1.5 text-[10px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-widest transition-all"
                 >
-                  <X size={14} /> Close Section
+                  <X size={14} /> Close
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -295,7 +298,7 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
                   onChange={v => setFilters({ ...filters, visitType: v })}
                 />
                 <FilterSelect
-                  label="Patient Gender"
+                  label="Gender"
                   value={filters.gender}
                   options={['All', 'Male', 'Female', 'Other']}
                   onChange={v => setFilters({ ...filters, gender: v })}
@@ -315,15 +318,15 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
       {/* Stats Summary */}
       <div className="flex items-center justify-between px-2">
         <div className="flex flex-col">
-          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Results</h4>
-          <p className="text-xl font-black text-slate-900 tracking-tight">{filtered.length} Assessments found</p>
+          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Clinic Records Overview</h4>
+          <p className="text-xl font-black text-slate-900 tracking-tight">{filtered.length} Assessments Registered</p>
         </div>
         <button onClick={onRefresh} className={`p-4 bg-white border border-slate-100 rounded-2xl text-slate-900 hover:bg-emerald-50 hover:text-emerald-600 transition-all ${loading ? 'animate-spin' : ''}`}>
           <RefreshCw size={20} />
         </button>
       </div>
 
-      {/* List */}
+      {/* List Container */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((record, i) => (
           <motion.div
@@ -332,7 +335,6 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
             key={i}
             className="bg-white p-6 rounded-[36px] border border-slate-50 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden"
           >
-            {/* Visual indicator for Visit Type */}
             <div className={`absolute top-0 right-10 w-12 h-1 ${record.visit_type === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
 
             <div className="flex gap-4 mb-6">
@@ -348,7 +350,7 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
             <div className="bg-slate-50/50 rounded-2xl p-4 mb-6 border border-slate-50">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none italic">Diagnosis</p>
               <p className="text-sm font-bold text-slate-700 line-clamp-1 truncate leading-tight">
-                {record.diagnosis || 'Observation Pending'}
+                {record.diagnosis || 'Clinical Review Pending'}
               </p>
             </div>
 
@@ -359,7 +361,7 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
               </div>
               <button
                 onClick={() => onViewRecord(record)}
-                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-all"
+                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-all shadow-lg shadow-slate-900/10 active:scale-95"
               >
                 <Eye size={14} /> Open
               </button>
@@ -382,8 +384,8 @@ const HomeHero = ({ records, loading, onRefresh, setView, onViewRecord }) => {
 
 const FilterSelect = ({ label, value, options, onChange }) => (
   <div className="space-y-2">
-    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{label}</label>
-    <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2 leading-none">{label}</label>
+    <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
       {options.map(opt => (
         <button
           key={opt}
@@ -422,14 +424,14 @@ const Modal = ({ record, onClose }) => {
             </div>
             <div>
               <h3 className="text-2xl font-black tracking-tight leading-none mb-1 uppercase">{record.patient_name}</h3>
-              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest opacity-80">{record.patient_id} • CLINICAL ASSESSMENT</p>
+              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest opacity-80">{record.patient_id} • CASE RECORD</p>
             </div>
           </div>
           <button onClick={onClose} className="p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all"><X size={24} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scroll">
-          {/* Section: Quick Bio */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-12">
+          {/* Quick Bio */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-8 pb-10 border-b border-slate-50">
             <DetailItem label="Mobile Contact" value={record.mobile_number} icon={<Phone />} />
             <DetailItem label="Age / Gender" value={`${record.age}y • ${record.gender}`} icon={<User />} />
@@ -440,26 +442,26 @@ const Modal = ({ record, onClose }) => {
             </div>
           </div>
 
-          {/* Section: Clinical Detail */}
+          {/* Clinical Detail */}
           <div className="space-y-8">
             <div className="flex items-center justify-between">
-              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Section Case History</h4>
+              <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Clinical Case History</h4>
               <div className="h-0.5 flex-1 bg-slate-50 ml-4 rounded-full" />
             </div>
 
             <div className="space-y-6">
-              <ViewCard label="Diagnosed Clinical Condition" value={record.diagnosis} color="bg-blue-50 text-blue-900 border-blue-100" accent="bg-blue-500" />
-              <ViewCard label="Treatment / Procedure Advice" value={record.treatment_procedure} color="bg-violet-50 text-violet-900 border-violet-100" accent="bg-violet-500" />
+              <ViewCard label="Diagnosed Medical Condition" value={record.diagnosis} color="bg-blue-50 text-blue-900 border-blue-100" accent="bg-blue-500" />
+              <ViewCard label="Advised Treatment / Procedure" value={record.treatment_procedure} color="bg-violet-50 text-violet-900 border-violet-100" accent="bg-violet-500" />
               {record.prescription_notes && (
-                <ViewCard label="Active Prescriptions" value={record.prescription_notes} color="bg-emerald-50 text-emerald-900 border-emerald-100" accent="bg-emerald-500" />
+                <ViewCard label="Prescribed Medicines" value={record.prescription_notes} color="bg-emerald-50 text-emerald-900 border-emerald-100" accent="bg-emerald-500" />
               )}
               {record.doctor_remarks && (
-                <ViewCard label="Staff / Doctor Remarks" value={record.doctor_remarks} color="bg-amber-50 text-amber-900 border-amber-100" accent="bg-amber-500" />
+                <ViewCard label="Doctor's Internal Remarks" value={record.doctor_remarks} color="bg-amber-50 text-amber-900 border-amber-100" accent="bg-amber-500" />
               )}
             </div>
           </div>
 
-          {/* Section: System Info */}
+          {/* Metadata */}
           <div className="p-6 bg-slate-50 rounded-[32px] border border-slate-100 flex flex-wrap gap-x-12 gap-y-4">
             <div>
               <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Registered by</p>
@@ -478,12 +480,12 @@ const Modal = ({ record, onClose }) => {
               href={record.image_drive_link}
               target="_blank"
               rel="noreferrer"
-              className="flex-1 py-5 bg-[#1A2B3C] text-white rounded-[24px] font-black text-[11px] uppercase tracking-[0.1em] text-center shadow-2xl shadow-slate-900/40 hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
+              className="flex-1 py-5 bg-[#1A2B3C] text-white rounded-[24px] font-black text-[11px] uppercase tracking-widest text-center shadow-2xl shadow-slate-900/40 hover:bg-slate-800 transition-all flex items-center justify-center gap-3"
             >
               <FileText size={18} /> Open Drive X-Ray
             </a>
           ) : (
-            <div className="flex-1 py-5 bg-slate-200 text-slate-400 rounded-[24px] font-black text-[11px] uppercase tracking-widest text-center cursor-not-allowed">Imaging Not Available</div>
+            <div className="flex-1 py-5 bg-slate-200 text-slate-400 rounded-[24px] font-black text-[11px] uppercase tracking-widest text-center cursor-not-allowed">Imaging Not Found</div>
           )}
           <button onClick={() => window.print()} className="p-5 bg-white border border-slate-200 text-slate-900 rounded-[24px] shadow-sm hover:shadow-lg transition-all"><Printer size={22} /></button>
         </div>
@@ -496,7 +498,7 @@ const ViewCard = ({ label, value, color, accent }) => (
   <div className={`p-6 rounded-[28px] border relative ${color}`}>
     <div className={`absolute top-6 left-0 w-1 h-6 rounded-r-full ${accent}`} />
     <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-40 mb-2 leading-none">{label}</p>
-    <p className="text-base font-bold leading-relaxed">{value || 'No clinical data provided'}</p>
+    <p className="text-base font-bold leading-relaxed">{value || 'Observation Data Missing'}</p>
   </div>
 );
 
@@ -505,7 +507,7 @@ const DetailItem = ({ label, value, icon }) => (
     <div className="shrink-0 p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 h-fit">{React.cloneElement(icon, { size: 16 })}</div>
     <div>
       <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1 leading-none">{label}</p>
-      <p className="text-sm font-black text-slate-800 tracking-tight">{value || 'Not Specified'}</p>
+      <p className="text-sm font-black text-slate-800 tracking-tight">{value || 'N/A'}</p>
     </div>
   </div>
 );
@@ -545,7 +547,7 @@ const RegistrationForm = ({ onSuccess, onError }) => {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (err) {
-        onError('Camera Access Denied');
+        onError('Camera Hardware Inaccessible');
         setIsCapturing(false);
       }
     }
@@ -555,7 +557,7 @@ const RegistrationForm = ({ onSuccess, onError }) => {
     const context = canvasRef.current.getContext('2d');
     context.drawImage(videoRef.current, 0, 0, 400, 300);
     const base64 = canvasRef.current.toDataURL('image/jpeg');
-    setImage({ base64, name: `photo_${Date.now()}.jpg`, type: 'image/jpeg' });
+    setImage({ base64, name: `clinic_${Date.now()}.jpg`, type: 'image/jpeg' });
     toggleCamera();
   };
 
@@ -571,6 +573,10 @@ const RegistrationForm = ({ onSuccess, onError }) => {
             else onError(res.message);
             setSubmitting(false);
           })
+          .withFailureHandler((err) => {
+            onError('Google Apps Script Failure: ' + err.message);
+            setSubmitting(false);
+          })
           .saveData({ ...formData, image });
       } else {
         const res = await gas.saveData({ ...formData, image });
@@ -578,7 +584,7 @@ const RegistrationForm = ({ onSuccess, onError }) => {
         setSubmitting(false);
       }
     } catch (err) {
-      onError('Synchronization Error');
+      onError('Synchronization Fatal Error');
       setSubmitting(false);
     }
   };
@@ -598,17 +604,17 @@ const RegistrationForm = ({ onSuccess, onError }) => {
             <RotateCcw size={18} />
           </button>
         </div>
-        <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Patient Entry</h2>
-        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-3">Advanced Clinical Enrichment Data</p>
+        <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none">Registration</h2>
+        <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-3">Advanced Orthopedic Clinical Entry</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Identity & Contact (Blue) */}
-        <Section title="01. Identity & Contact" color="blue" icon={<User />}>
+        {/* Section 1: Bio (Blue) */}
+        <Section title="01. Identity & Profile" color="blue" icon={<User />}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField label="Patient Legal Name" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} color="blue" />
+            <InputField label="Patient Name" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} color="blue" />
             <div className="grid grid-cols-2 gap-5">
-              <InputField label="Patient Age" type="number" value={formData.age} onChange={v => setFormData({ ...formData, age: v })} color="blue" />
+              <InputField label="Age (Years)" type="number" value={formData.age} onChange={v => setFormData({ ...formData, age: v })} color="blue" />
               <div>
                 <label className="text-[10px] font-black text-blue-400 uppercase ml-2 tracking-widest">Gender</label>
                 <select className="w-full mt-2.5 p-4.5 bg-white border border-blue-100 rounded-2xl font-black text-xs text-blue-900 outline-none focus:ring-4 focus:ring-blue-500/5 transition-all uppercase" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
@@ -617,51 +623,49 @@ const RegistrationForm = ({ onSuccess, onError }) => {
               </div>
             </div>
           </div>
-          <InputField label="Primary Mobile Member" icon={<Phone size={14} />} value={formData.mobile} onChange={v => setFormData({ ...formData, mobile: v })} color="blue" />
+          <InputField label="Primary Contact Mobile" icon={<Phone size={14} />} value={formData.mobile} onChange={v => setFormData({ ...formData, mobile: v })} color="blue" />
         </Section>
 
-        {/* Clinical Nature (Violet) */}
-        <Section title="02. Clinical Nature" color="violet" icon={<ClipboardList />}>
+        {/* Section 2: Clinical (Violet) */}
+        <Section title="02. Clinical Assessment" color="violet" icon={<ClipboardList />}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="text-[10px] font-black text-violet-400 uppercase ml-2 tracking-widest leading-none block mb-2.5">Visit Classification</label>
               <div className="flex bg-white p-1.5 rounded-2xl border border-violet-100 gap-1.5">
-                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'New' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'New' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300 hover:text-violet-500'}`}>NEW CASE</button>
-                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'Review' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'Review' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300 hover:text-violet-500'}`}>REVIEW VISIT</button>
+                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'New' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'New' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300'}`}>NEW CASE</button>
+                <button type="button" onClick={() => setFormData({ ...formData, visitType: 'Review' })} className={`flex-1 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${formData.visitType === 'Review' ? 'bg-violet-600 text-white shadow-xl' : 'text-violet-300'}`}>REVIEW</button>
               </div>
             </div>
-            <InputField label="Observation Date" type="date" value={formData.visitDate} onChange={v => setFormData({ ...formData, visitDate: v })} color="violet" />
+            <InputField label="Date of Assessment" type="date" value={formData.visitDate} onChange={v => setFormData({ ...formData, visitDate: v })} color="violet" />
           </div>
-          <TextAreaField label="Clinical Diagnosis (Condition)" value={formData.diagnosis} onChange={v => setFormData({ ...formData, diagnosis: v })} color="violet" />
-          <TextAreaField label="Procedure / Treatment Summary" value={formData.treatment} onChange={v => setFormData({ ...formData, treatment: v })} color="violet" />
-          <TextAreaField label="Advanced Prescription / Notes" value={formData.prescription} onChange={v => setFormData({ ...formData, prescription: v })} color="violet" />
+          <TextAreaField label="Clinical Diagnosis (Assessment)" value={formData.diagnosis} onChange={v => setFormData({ ...formData, diagnosis: v })} color="violet" />
+          <TextAreaField label="Prescription / Medicines Advice" value={formData.prescription} onChange={v => setFormData({ ...formData, prescription: v })} color="violet" />
         </Section>
 
-        {/* Medical Imaging (Rose) */}
-        <Section title="03. Radiography / Imaging" color="rose" icon={<Camera />}>
-          <div className="aspect-square max-w-[340px] mx-auto bg-white rounded-[48px] border-4 border-dashed border-rose-100 overflow-hidden relative group cursor-pointer shadow-xl shadow-rose-500/5 transition-all hover:scale-[1.02]" onClick={!image && !isCapturing ? toggleCamera : undefined}>
+        {/* Section 3: Radiography (Rose) */}
+        <Section title="03. Radiography Capture" color="rose" icon={<Camera />}>
+          <div className="aspect-square max-w-[340px] mx-auto bg-white rounded-[48px] border-4 border-dashed border-rose-100 overflow-hidden relative group cursor-pointer shadow-xl transition-all hover:scale-[1.01]" onClick={!image && !isCapturing ? toggleCamera : undefined}>
             {isCapturing ? (
               <div className="w-full h-full relative">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent pointer-events-none" />
                 <div className="absolute bottom-10 inset-x-0 flex justify-center gap-6">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); takePhoto(); }} className="w-18 h-18 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-2xl active:scale-75 transition-transform border-4 border-white/20"><Camera size={32} /></button>
-                  <button type="button" onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className="w-18 h-18 bg-white text-rose-500 rounded-full flex items-center justify-center shadow-2xl active:scale-75 transition-transform"><X size={32} /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); takePhoto(); }} className="w-18 h-18 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30"><Camera size={32} /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); toggleCamera(); }} className="w-18 h-18 bg-white text-rose-500 rounded-full flex items-center justify-center shadow-2xl"><X size={32} /></button>
                 </div>
               </div>
             ) : image ? (
               <div className="w-full h-full relative">
                 <img src={image.base64} className="w-full h-full object-cover" alt="Captured" />
-                <button type="button" onClick={(e) => { e.stopPropagation(); setImage(null); }} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-900/90 text-white rounded-2xl shadow-xl font-black text-[10px] uppercase tracking-widest backdrop-blur-md">Discard & Retake</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setImage(null); }} className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-900 text-white rounded-2xl shadow-xl font-black text-[10px] uppercase tracking-widest">Discard Photo</button>
               </div>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-5 p-10">
-                <div className="p-8 bg-rose-50 text-rose-200 rounded-[40px] transition-colors group-hover:bg-rose-100 group-hover:text-rose-500">
+                <div className="p-8 bg-rose-50 text-rose-200 rounded-[40px] group-hover:bg-rose-100 group-hover:text-rose-500 transition-colors">
                   <Camera size={56} />
                 </div>
                 <div className="text-center">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-900">Start Capturing</p>
-                  <p className="text-[9px] font-bold text-rose-300 mt-2 uppercase tracking-widest leading-none">Auto-Sync Enabled</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-rose-900 leading-none">Open Camera</p>
+                  <p className="text-[9px] font-bold text-rose-300 mt-2 uppercase tracking-widest">Uploads to Cloud Drive</p>
                 </div>
               </div>
             )}
@@ -669,34 +673,34 @@ const RegistrationForm = ({ onSuccess, onError }) => {
           </div>
         </Section>
 
-        {/* Location & Metadata (Amber) */}
-        <Section title="04. Domicile & Metadata" color="amber" icon={<MapPin />}>
+        {/* Section 4: Location (Amber) */}
+        <Section title="04. Address & Metadata" color="amber" icon={<MapPin />}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <InputField label="Native Village" value={formData.village} onChange={v => setFormData({ ...formData, village: v })} color="amber" />
-            <InputField label="Taluk Area" value={formData.taluk} onChange={v => setFormData({ ...formData, taluk: v })} color="amber" />
-            <InputField label="District Code" value={formData.district} onChange={v => setFormData({ ...formData, district: v })} color="amber" />
+            <InputField label="Village" value={formData.village} onChange={v => setFormData({ ...formData, village: v })} color="amber" />
+            <InputField label="Taluk" value={formData.taluk} onChange={v => setFormData({ ...formData, taluk: v })} color="amber" />
+            <InputField label="District" value={formData.district} onChange={v => setFormData({ ...formData, district: v })} color="amber" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <InputField label="Consultation Remarks" value={formData.remarks} onChange={v => setFormData({ ...formData, remarks: v })} color="amber" />
-            <InputField label="Authorized Staff" value={formData.enteredBy} onChange={v => setFormData({ ...formData, enteredBy: v })} color="amber" />
+            <InputField label="Doctor Remarks" value={formData.remarks} onChange={v => setFormData({ ...formData, remarks: v })} color="amber" />
+            <InputField label="Data Entered By" value={formData.enteredBy} onChange={v => setFormData({ ...formData, enteredBy: v })} color="amber" />
           </div>
         </Section>
 
-        {/* Action Button */}
+        {/* Submit */}
         <div className="pt-6 px-2 flex flex-col gap-4">
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-7 bg-[#1A2B3C] text-white rounded-[36px] font-black uppercase tracking-[0.3em] text-sm shadow-2xl shadow-slate-900/40 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-4 group"
+            className="w-full py-7 bg-slate-900 text-white rounded-[36px] font-black uppercase tracking-[0.3em] text-sm shadow-2xl active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-4 group"
           >
             {submitting ? (
               <>
                 <RefreshCw size={24} className="animate-spin" />
-                <span>COMMITTING TO SHEETS...</span>
+                <span>SYNCING CLINIC DATA...</span>
               </>
             ) : (
               <>
-                <span>LEGALIZE & LOCK RECORD</span>
+                <span>SAVE PATIENT RECORD</span>
                 <ArrowRight size={24} strokeWidth={3} className="group-hover:translate-x-2 transition-transform" />
               </>
             )}
@@ -705,9 +709,9 @@ const RegistrationForm = ({ onSuccess, onError }) => {
           <button
             type="button"
             onClick={clearForm}
-            className="w-full py-4 bg-transparent border-2 border-slate-200 text-slate-400 rounded-[32px] font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-slate-50 hover:text-slate-600 hover:border-slate-300"
+            className="w-full py-4 bg-transparent border-2 border-slate-100 text-slate-300 rounded-[32px] font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100"
           >
-            Reset Form Data (Clear Bit)
+            Purge Current Form (Reset)
           </button>
         </div>
       </form>
@@ -750,29 +754,29 @@ const Section = ({ title, color, icon, children }) => {
 
 const InputField = ({ label, type = 'text', value, onChange, icon, required, color = "blue" }) => {
   const colors = {
-    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-200 ring-blue-500/5 focus:ring-8",
-    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-200 ring-amber-500/5 focus:ring-8",
-    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-200 ring-violet-500/5 focus:ring-8",
-    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-200 ring-rose-500/5 focus:ring-8"
+    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-100 focus:bg-white",
+    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-100 focus:bg-white",
+    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-100 focus:bg-white",
+    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-100 focus:bg-white"
   };
   const labelColors = {
-    blue: "text-blue-400",
-    amber: "text-amber-400",
-    violet: "text-violet-400",
-    rose: "text-rose-400"
+    blue: "text-blue-400 font-bold",
+    amber: "text-amber-400 font-bold",
+    violet: "text-violet-400 font-bold",
+    rose: "text-rose-400 font-bold"
   };
 
   return (
     <div className="w-full">
-      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 tracking-widest leading-none block mb-2.5`}>
-        {icon && React.cloneElement(icon)} {label}
+      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 leading-none block mb-2.5 tracking-widest`}>
+        {label}
       </label>
       <input
         type={type}
         required={required}
-        className={`w-full p-4.5 bg-white border-2 rounded-[22px] font-black text-xs outline-none transition-all ${colors[color]}`}
+        className={`w-full p-4.5 bg-white/40 border-2 rounded-[22px] font-black text-xs outline-none transition-all ${colors[color]}`}
         value={value}
-        placeholder={`TYPE ${label.toUpperCase()}...`}
+        placeholder={`${label.toUpperCase()}...`}
         onChange={e => onChange(e.target.value)}
       />
     </div>
@@ -781,24 +785,24 @@ const InputField = ({ label, type = 'text', value, onChange, icon, required, col
 
 const TextAreaField = ({ label, value, onChange, color = "blue" }) => {
   const colors = {
-    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-200 ring-blue-500/5 focus:ring-8",
-    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-200 ring-amber-500/5 focus:ring-8",
-    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-200 ring-violet-500/5 focus:ring-8",
-    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-200 ring-rose-500/5 focus:ring-8"
+    blue: "border-blue-200/50 focus:border-blue-500 text-blue-900 placeholder:text-blue-100 focus:bg-white",
+    amber: "border-amber-200/50 focus:border-amber-500 text-amber-900 placeholder:text-amber-100 focus:bg-white",
+    violet: "border-violet-200/50 focus:border-violet-500 text-violet-900 placeholder:text-violet-100 focus:bg-white",
+    rose: "border-rose-200/50 focus:border-rose-500 text-rose-900 placeholder:text-rose-100 focus:bg-white"
   };
   const labelColors = {
-    blue: "text-blue-400",
-    amber: "text-amber-400",
-    violet: "text-violet-400",
-    rose: "text-rose-400"
+    blue: "text-blue-400 font-bold",
+    amber: "text-amber-400 font-bold",
+    violet: "text-violet-400 font-bold",
+    rose: "text-rose-400 font-bold"
   };
 
   return (
     <div className="w-full">
-      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 tracking-widest leading-none block mb-2.5`}>{label}</label>
+      <label className={`text-[10px] font-black uppercase ${labelColors[color]} ml-2 leading-none block mb-2.5 tracking-widest`}>{label}</label>
       <textarea
         rows={4}
-        className={`w-full p-5 bg-white border-2 rounded-[28px] font-black text-xs outline-none transition-all ${colors[color]}`}
+        className={`w-full p-5 bg-white/40 border-2 rounded-[28px] font-black text-xs outline-none transition-all ${colors[color]}`}
         value={value}
         placeholder={`DESCRIBE ${label.toUpperCase()}...`}
         onChange={e => onChange(e.target.value)}

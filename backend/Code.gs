@@ -4,16 +4,33 @@
  */
 
 const CONFIG = {
+  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // Replace with your actual Sheet ID
   SHEET_NAME: 'Patients',
   IMAGES_FOLDER_NAME: 'Guru_Clinic_Clinical_Images'
 };
+
+/**
+ * Helper to get the Spreadsheet reliably
+ */
+function getSS() {
+  if (CONFIG.SHEET_ID && CONFIG.SHEET_ID !== 'YOUR_SHEET_ID_HERE') {
+    try {
+      return SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    } catch (e) {
+      Logger.log('Error opening sheet by ID: ' + e.toString());
+    }
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
 
 /**
  * 1. INITIALIZE SYSTEM
  * Run this function ONCE in the Apps Script editor (Debug) to setup everything.
  */
 function initializeSystem() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSS();
+  if (!ss) throw new Error('Could not identify Spreadsheet. Please set SHEET_ID in CONFIG.');
+  
   let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   
   // A. Setup Sheet Headers
@@ -68,12 +85,13 @@ function doGet() {
  */
 function saveData(data) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    const ss = getSS();
+    if (!ss) return { success: false, message: 'Could not identify Spreadsheet.' };
     
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
       initializeSystem();
-      sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     }
 
     // Handle Image Upload
@@ -123,7 +141,7 @@ function saveData(data) {
       record: record 
     };
   } catch (e) {
-    return { success: false, message: 'System Error: ' + e.toString() };
+    return { success: false, message: 'Backend Error: ' + e.toString() };
   }
 }
 
@@ -131,20 +149,25 @@ function saveData(data) {
  * 4. UPLOAD LOGIC
  */
 function uploadToDrive(base64Data, fileName, contentType) {
-  let folder;
-  const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
-  if (folders.hasNext()) {
-    folder = folders.next();
-  } else {
-    folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
-    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  try {
+    let folder;
+    const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    }
+    
+    const decoded = Utilities.base64Decode(base64Data.split(',')[1]);
+    const blob = Utilities.newBlob(decoded, contentType, fileName);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return file.getUrl();
+  } catch (e) {
+    Logger.log('Drive Error: ' + e.toString());
+    return '';
   }
-  
-  const decoded = Utilities.base64Decode(base64Data.split(',')[1]);
-  const blob = Utilities.newBlob(decoded, contentType, fileName);
-  const file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
 }
 
 /**
@@ -152,7 +175,9 @@ function uploadToDrive(base64Data, fileName, contentType) {
  */
 function getRecords() {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = getSS();
+    if (!ss) return [];
+    
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     if (!sheet) return [];
     
