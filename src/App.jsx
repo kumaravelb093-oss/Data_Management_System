@@ -9,9 +9,42 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * PRODUCTION CONFIGURATION
- * Replace this with your deployed Google Apps Script Web App URL
+ * Read the API endpoint from Vite Environment Variables
  */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwtDpALsF4sOZKN_sk2i9hlW72LRlUOOOKkqmFmOIlMehg2dQP-1ncCBGlTapNiOfMF/exec';
+const API_URL = import.meta.env.VITE_API_URL;
+
+/**
+ * REUSABLE API CLIENT
+ * Sends JSON to Google Apps Script Web App
+ */
+const submitToGas = async (payload) => {
+  console.log('--- API Request Started ---');
+  console.log('Endpoint:', API_URL);
+  console.log('Payload:', payload);
+
+  try {
+    if (!API_URL) throw new Error('VITE_API_URL is not defined in environment variables');
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      mode: 'cors', // Essential for Vercel -> Google Apps Script
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8', // Preferred for GAS to bypass preflight OPTIONS
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log('--- API Response Received ---');
+    console.log('Result:', result);
+
+    return result;
+  } catch (error) {
+    console.error('--- API Request Failed ---');
+    console.error('Error Details:', error.message);
+    throw error;
+  }
+};
 
 const App = () => {
   const [view, setView] = useState('home');
@@ -30,6 +63,7 @@ const App = () => {
   const loadRecords = async () => {
     setLoading(true);
     try {
+      if (!API_URL) return;
       const response = await fetch(API_URL);
       const data = await response.json();
       setRecords(Array.isArray(data) ? data : []);
@@ -287,16 +321,16 @@ const RegistrationForm = ({ onSuccess, onError }) => {
     setSubmitting(true);
 
     try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS POST prefers this
-        body: JSON.stringify({ ...formData, media })
-      });
-      const res = await response.json();
-      if (res.success) onSuccess();
-      else onError(res.error || 'Server error');
+      // Use the reusable production-ready submit utility
+      const res = await submitToGas({ ...formData, media });
+
+      if (res.success) {
+        onSuccess();
+      } else {
+        onError(res.error || 'Server refused assessment synchronization');
+      }
     } catch (err) {
-      onError('Network or CORS error');
+      onError('Network error: Ensure VITE_API_URL is set in Vercel');
     } finally {
       setSubmitting(false);
     }
