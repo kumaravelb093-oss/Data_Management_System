@@ -1,205 +1,137 @@
 /**
- * GURU ORTHO CLINIC - ADVANCED DATA MANAGEMENT SYSTEM
- * Backend: Google Apps Script
+ * GURU ORTHO CLINIC - PRODUCTION REST API
+ * Designed for Vercel (React) + Google Apps Script
  */
 
 const CONFIG = {
-  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // Replace with your actual Sheet ID
+  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // MUST REPLACE WITH YOUR SHEET ID
   SHEET_NAME: 'Patients',
-  IMAGES_FOLDER_NAME: 'Guru_Clinic_Clinical_Images'
+  UPLOAD_FOLDER_ID: '' // Optional: Set specific folder ID, otherwise auto-creates 'Clinic_Media'
 };
 
 /**
- * Helper to get the Spreadsheet reliably
+ * 1. REST GET ENDPOINT
+ * Returns records as JSON. Supports search: ?mobile=XXX or ?id=XXX
  */
-function getSS() {
-  if (CONFIG.SHEET_ID && CONFIG.SHEET_ID !== 'YOUR_SHEET_ID_HERE') {
-    try {
-      return SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    } catch (e) {
-      Logger.log('Error opening sheet by ID: ' + e.toString());
-    }
-  }
-  return SpreadsheetApp.getActiveSpreadsheet();
-}
-
-/**
- * 1. INITIALIZE SYSTEM
- * Run this function ONCE in the Apps Script editor (Debug) to setup everything.
- */
-function initializeSystem() {
-  const ss = getSS();
-  if (!ss) throw new Error('Could not identify Spreadsheet. Please set SHEET_ID in CONFIG.');
-  
-  let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  
-  // A. Setup Sheet Headers
-  if (!sheet) {
-    sheet = ss.insertSheet(CONFIG.SHEET_NAME);
-  }
-  
-  const headers = [
-    'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
-    'Village', 'Taluk', 'District', 'Visit Date', 'Visit Type', 'Doctor Name',
-    'Diagnosis', 'Treatment / Procedure', 'Prescription Notes', 'Doctor Remarks',
-    'Image Type', 'Image File Name', 'Image Drive Link', 'Data Entered By', 'Last Updated Time'
-  ];
-  
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, headers.length).setBackground('#1A2B3C').setFontColor('#FFFFFF').setFontWeight('bold');
-  
-  // B. Setup Drive Folder
-  let folder;
-  const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
-  if (folders.hasNext()) {
-    folder = folders.next();
-  } else {
-    folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
-    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  }
-  
-  Logger.log('System Initialized!');
-  Logger.log('Folder ID: ' + folder.getId());
-  Logger.log('Sheet URL: ' + ss.getUrl());
-  
-  return { 
-    folderId: folder.getId(), 
-    sheetUrl: ss.getUrl(),
-    message: "System Setup Complete. Columns and Folder are ready!" 
-  };
-}
-
-/**
- * 2. WEB APP ENTRY
- */
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Guru Ortho Portal')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-}
-
-/**
- * 3. SAVE PATIENT DATA
- */
-function saveData(data) {
+function doGet(e) {
   try {
-    const ss = getSS();
-    if (!ss) return { success: false, message: 'Could not identify Spreadsheet.' };
-    
-    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    if (!sheet) {
-      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
-      initializeSystem();
-    }
-
-    // Handle Image Upload
-    let imageUrl = '';
-    if (data.image && data.image.base64) {
-      imageUrl = uploadToDrive(data.image.base64, data.image.name, data.image.type);
-    }
-
-    const timestamp = new Date();
-    const patientId = 'P-' + Date.now();
-    
-    const record = {
-      entry_date_time: timestamp,
-      patient_id: patientId,
-      patient_name: data.name,
-      age: data.age,
-      gender: data.gender,
-      mobile_number: data.mobile,
-      village: data.village,
-      taluk: data.taluk,
-      district: data.district,
-      visit_date: data.visitDate || timestamp,
-      visit_type: data.visitType,
-      doctor_name: data.doctorName || 'Dr. Guru',
-      diagnosis: data.diagnosis,
-      treatment_procedure: data.treatment,
-      prescription_notes: data.prescription,
-      doctor_remarks: data.remarks,
-      image_type: data.image ? 'Clinical Photo' : 'No Image',
-      image_file_name: data.image ? data.image.name : '',
-      image_drive_link: imageUrl,
-      data_entered_by: data.enteredBy || 'Staff',
-      last_updated_time: timestamp
-    };
-
-    // Append to sheet
-    sheet.appendRow([
-      record.entry_date_time, record.patient_id, record.patient_name, record.age, record.gender, record.mobile_number,
-      record.village, record.taluk, record.district, record.visit_date, record.visit_type, record.doctor_name,
-      record.diagnosis, record.treatment_procedure, record.prescription_notes, record.doctor_remarks,
-      record.image_type, record.image_file_name, record.image_drive_link, record.data_entered_by, record.last_updated_time
-    ]);
-
-    return { 
-      success: true, 
-      message: 'Assessment Locked Successfully!', 
-      record: record 
-    };
-  } catch (e) {
-    return { success: false, message: 'Backend Error: ' + e.toString() };
-  }
-}
-
-/**
- * 4. UPLOAD LOGIC
- */
-function uploadToDrive(base64Data, fileName, contentType) {
-  try {
-    let folder;
-    const folders = DriveApp.getFoldersByName(CONFIG.IMAGES_FOLDER_NAME);
-    if (folders.hasNext()) {
-      folder = folders.next();
-    } else {
-      folder = DriveApp.createFolder(CONFIG.IMAGES_FOLDER_NAME);
-      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    }
-    
-    const decoded = Utilities.base64Decode(base64Data.split(',')[1]);
-    const blob = Utilities.newBlob(decoded, contentType, fileName);
-    const file = folder.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return file.getUrl();
-  } catch (e) {
-    Logger.log('Drive Error: ' + e.toString());
-    return '';
-  }
-}
-
-/**
- * 5. FETCH RECORDS
- */
-function getRecords() {
-  try {
-    const ss = getSS();
-    if (!ss) return [];
-    
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    if (!sheet) return [];
-    
+    if (!sheet) return jsonResponse({ success: false, message: 'Sheet not found' });
+
     const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return [];
-    
+    if (data.length <= 1) return jsonResponse([]);
+
     const headers = data[0];
-    const rows = data.slice(1).reverse(); // Newest first
+    const rows = data.slice(1);
     
-    return rows.map(row => {
+    let results = rows.map(row => {
       let obj = {};
       headers.forEach((header, i) => {
-        const key = header.toLowerCase()
-          .replace(/ & /g, '_')
-          .replace(/ \/ /g, '_')
-          .replace(/ /g, '_');
+        const key = header.toLowerCase().replace(/[^a-z0-9]/g, '_');
         obj[key] = row[i];
       });
       return obj;
     });
-  } catch (e) {
-    Logger.log('Fetch Error: ' + e.toString());
-    return [];
+
+    // Filtering
+    if (e.parameter.mobile) {
+      results = results.filter(r => String(r.mobile_number).includes(e.parameter.mobile));
+    }
+    if (e.parameter.id) {
+      results = results.filter(r => r.patient_id === e.parameter.id);
+    }
+
+    return jsonResponse(results.reverse()); // Newest first
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.toString() });
   }
+}
+
+/**
+ * 2. REST POST ENDPOINT
+ * Accepts JSON payload from Vercel
+ */
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    
+    // Auto-create headers if missing
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+      const headers = [
+        'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+        'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+      ];
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length).setBackground('#1A365D').setFontColor('#FFFFFF').setFontWeight('bold');
+    }
+
+    // Handle Media (Base64 Image or Video)
+    let mediaUrl = '';
+    if (data.media && data.media.base64) {
+      mediaUrl = uploadFile(data.media.base64, data.media.name, data.media.type);
+    }
+
+    const patientId = 'P-' + Date.now();
+    const timestamp = new Date();
+
+    const rowData = [
+      timestamp,
+      patientId,
+      data.name,
+      data.age,
+      data.gender,
+      data.mobile,
+      data.diagnosis,
+      data.treatment,
+      data.remarks,
+      data.media ? data.media.type : 'None',
+      mediaUrl,
+      data.enteredBy || 'Vercel App'
+    ];
+
+    sheet.appendRow(rowData);
+
+    return jsonResponse({ 
+      success: true, 
+      patientId: patientId, 
+      mediaUrl: mediaUrl,
+      message: 'Data saved successfully via REST API' 
+    });
+
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.toString() });
+  }
+}
+
+/**
+ * Helper: Upload Base64 to Drive
+ */
+function uploadFile(base64Data, fileName, contentType) {
+  let folder;
+  if (CONFIG.UPLOAD_FOLDER_ID) {
+    folder = DriveApp.getFolderById(CONFIG.UPLOAD_FOLDER_ID);
+  } else {
+    const folders = DriveApp.getFoldersByName('Clinic_Media');
+    folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Clinic_Media');
+  }
+  
+  const contentTypeBase = base64Data.split(',')[0].split(':')[1].split(';')[0];
+  const decodedData = Utilities.base64Decode(base64Data.split(',')[1]);
+  const blob = Utilities.newBlob(decodedData, contentTypeBase, fileName);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  
+  return file.getUrl();
+}
+
+/**
+ * Helper: CORS-safe JSON Response
+ */
+function jsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
