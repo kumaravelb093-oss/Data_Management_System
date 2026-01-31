@@ -1,23 +1,22 @@
 /**
  * GURU ORTHO CLINIC - PRODUCTION REST API
- * Designed for Vercel (React) + Google Apps Script
+ * Features: Auto-Setup, Image-to-Sheet Sync, Record Update (No Duplicates)
  */
 
 const CONFIG = {
   SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // MUST REPLACE WITH YOUR SHEET ID
   SHEET_NAME: 'Patients',
-  UPLOAD_FOLDER_ID: '' // Optional: Set specific folder ID, otherwise auto-creates 'Clinic_Media'
+  UPLOAD_FOLDER_NAME: 'Clinic_Media'
 };
 
 /**
  * 1. REST GET ENDPOINT
- * Returns records as JSON. Supports search: ?mobile=XXX or ?id=XXX
  */
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    if (!sheet) return jsonResponse({ success: false, message: 'Sheet not found' });
+    if (!sheet) return jsonResponse([]);
 
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return jsonResponse([]);
@@ -34,15 +33,7 @@ function doGet(e) {
       return obj;
     });
 
-    // Filtering
-    if (e.parameter.mobile) {
-      results = results.filter(r => String(r.mobile_number).includes(e.parameter.mobile));
-    }
-    if (e.parameter.id) {
-      results = results.filter(r => r.patient_id === e.parameter.id);
-    }
-
-    return jsonResponse(results.reverse()); // Newest first
+    return jsonResponse(results.reverse()); // Latest entries at the top
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
@@ -50,7 +41,7 @@ function doGet(e) {
 
 /**
  * 2. REST POST ENDPOINT
- * Accepts JSON payload from Vercel
+ * Handles both "Save" (New) and "Update" (Edit)
  */
 function doPost(e) {
   try {
@@ -58,7 +49,7 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     
-    // Auto-create headers if missing
+    // Auto-create sheet & headers if missing
     if (!sheet) {
       sheet = ss.insertSheet(CONFIG.SHEET_NAME);
       const headers = [
@@ -66,20 +57,21 @@ function doPost(e) {
         'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
       ];
       sheet.appendRow(headers);
-      sheet.getRange(1, 1, 1, headers.length).setBackground('#1A365D').setFontColor('#FFFFFF').setFontWeight('bold');
+      sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
     }
 
-    // Handle Media (Base64 Image or Video)
-    let mediaUrl = '';
-    if (data.media && data.media.base64) {
+    // Handle Media (Base64)
+    let mediaUrl = data.existingMediaUrl || '';
+    if (data.media && data.media.base64 && data.media.base64.startsWith('data:')) {
       mediaUrl = uploadFile(data.media.base64, data.media.name, data.media.type);
     }
 
-    const patientId = 'P-' + Date.now();
     const timestamp = new Date();
+    const isEdit = !!data.patient_id;
+    const patientId = isEdit ? data.patient_id : ('P-' + Date.now());
 
     const rowData = [
-      timestamp,
+      isEdit ? (data.entry_date_time || timestamp) : timestamp,
       patientId,
       data.name,
       data.age,
@@ -88,19 +80,35 @@ function doPost(e) {
       data.diagnosis,
       data.treatment,
       data.remarks,
-      data.media ? data.media.type : 'None',
+      data.media ? data.media.type : (mediaUrl ? 'File' : 'None'),
       mediaUrl,
       data.enteredBy || 'Vercel App'
     ];
 
-    sheet.appendRow(rowData);
+    if (isEdit) {
+      // UPDATE EXISTING ROW (NO DUPLICATES)
+      const sheetData = sheet.getDataRange().getValues();
+      let rowToUpdate = -1;
+      for (let i = 1; i < sheetData.length; i++) {
+        if (sheetData[i][1] === patientId) {
+          rowToUpdate = i + 1;
+          break;
+        }
+      }
 
-    return jsonResponse({ 
-      success: true, 
-      patientId: patientId, 
-      mediaUrl: mediaUrl,
-      message: 'Data saved successfully via REST API' 
-    });
+      if (rowToUpdate !== -1) {
+        sheet.getRange(rowToUpdate, 1, 1, rowData.length).setValues([rowData]);
+        return jsonResponse({ success: true, message: 'Updated Successfully', patientId: patientId });
+      } else {
+        // Fallback: append if ID not found for some reason
+        sheet.appendRow(rowData);
+        return jsonResponse({ success: true, message: 'Saved as New (ID not found for update)', patientId: patientId });
+      }
+    } else {
+      // SAVE NEW ROW
+      sheet.appendRow(rowData);
+      return jsonResponse({ success: true, message: 'Saved Successfully', patientId: patientId });
+    }
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -108,29 +116,20 @@ function doPost(e) {
 }
 
 /**
- * Helper: Upload Base64 to Drive
+ * Upload Helper
  */
 function uploadFile(base64Data, fileName, contentType) {
-  let folder;
-  if (CONFIG.UPLOAD_FOLDER_ID) {
-    folder = DriveApp.getFolderById(CONFIG.UPLOAD_FOLDER_ID);
-  } else {
-    const folders = DriveApp.getFoldersByName('Clinic_Media');
-    folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Clinic_Media');
-  }
+  const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
   
-  const contentTypeBase = base64Data.split(',')[0].split(':')[1].split(';')[0];
   const decodedData = Utilities.base64Decode(base64Data.split(',')[1]);
-  const blob = Utilities.newBlob(decodedData, contentTypeBase, fileName);
+  const blob = Utilities.newBlob(decodedData, contentType, fileName);
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   
   return file.getUrl();
 }
 
-/**
- * Helper: CORS-safe JSON Response
- */
 function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
