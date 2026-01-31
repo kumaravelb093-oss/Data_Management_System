@@ -49,13 +49,17 @@ const App = () => {
     setLoading(true);
     try {
       if (!API_URL) return;
-      const response = await fetch(API_URL);
+      const response = await fetch(API_URL, {
+        method: 'GET',
+        mode: 'cors',
+        redirect: 'follow'
+      });
       const data = await response.json();
       setRecords(Array.isArray(data) ? data : []);
       setLoading(false);
     } catch (e) {
       setLoading(false);
-      showNotification('Sync Error', 'error');
+      showNotification('Sync Error: Check Authorization', 'error');
     }
   };
 
