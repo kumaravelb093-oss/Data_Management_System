@@ -1,30 +1,28 @@
 /**
- * GURU ORTHO CLINIC - PRODUCTION REST API
- * Features: Auto-Setup, Image-to-Sheet Sync, Record Update (No Duplicates)
+ * GURU ORTHO CLINIC - PRODUCTION REST API v4.5
+ * Features: OP/IP Sectors, Auto-Setup, Record Update (No Duplicates)
  */
 
 const CONFIG = {
-  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // MUST REPLACE WITH YOUR SHEET ID
+  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ',
   SHEET_NAME: 'Patients',
   UPLOAD_FOLDER_NAME: 'Clinic_Media'
 };
 
 /**
  * 0. INITIALIZE SYSTEM
- * Run this function manually in the script editor to setup Headers and Drive Folder.
  */
 function initializeSystem() {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     
-    // A. Setup Sheet Headers
     if (!sheet) {
       sheet = ss.insertSheet(CONFIG.SHEET_NAME);
     }
     
     const headers = [
-      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Service Type (OP/IP)', 'Mobile Number', 
       'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
     ];
     
@@ -32,15 +30,12 @@ function initializeSystem() {
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
     
-    // B. Setup Drive Folder
     const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    Logger.log('Initialization Successful!');
-    return "Setup Complete! Folder and Sheet are ready.";
+    return "Setup Complete! OP/IP Sector Support Enabled.";
   } catch (e) {
-    Logger.log('Init Error: ' + e.toString());
     return "Error: " + e.toString();
   }
 }
@@ -63,13 +58,17 @@ function doGet(e) {
     let results = rows.map(row => {
       let obj = {};
       headers.forEach((header, i) => {
-        const key = header.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        // Normalize header keys for JS
+        const key = header.toLowerCase()
+          .replace(/\((.*?)\)/g, '') // remove (OP/IP)
+          .trim()
+          .replace(/[^a-z0-9]/g, '_');
         obj[key] = row[i];
       });
       return obj;
     });
 
-    return jsonResponse(results.reverse()); // Latest entries at the top
+    return jsonResponse(results.reverse());
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
@@ -77,7 +76,6 @@ function doGet(e) {
 
 /**
  * 2. REST POST ENDPOINT
- * Handles both "Save" (New) and "Update" (Edit)
  */
 function doPost(e) {
   try {
@@ -85,18 +83,11 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     
-    // Auto-create sheet & headers if missing
     if (!sheet) {
-      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
-      const headers = [
-        'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
-        'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
-      ];
-      sheet.appendRow(headers);
-      sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
+      initializeSystem();
+      sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     }
 
-    // Handle Media (Base64)
     let mediaUrl = data.existingMediaUrl || '';
     if (data.media && data.media.base64 && data.media.base64.startsWith('data:')) {
       mediaUrl = uploadFile(data.media.base64, data.media.name, data.media.type);
@@ -112,6 +103,7 @@ function doPost(e) {
       data.name,
       data.age,
       data.gender,
+      data.service_type || 'OP', // Default to OP
       data.mobile,
       data.diagnosis,
       data.treatment,
@@ -122,11 +114,10 @@ function doPost(e) {
     ];
 
     if (isEdit) {
-      // UPDATE EXISTING ROW (NO DUPLICATES)
       const sheetData = sheet.getDataRange().getValues();
       let rowToUpdate = -1;
       for (let i = 1; i < sheetData.length; i++) {
-        if (sheetData[i][1] === patientId) {
+        if (String(sheetData[i][1]) === String(patientId)) {
           rowToUpdate = i + 1;
           break;
         }
@@ -135,34 +126,24 @@ function doPost(e) {
       if (rowToUpdate !== -1) {
         sheet.getRange(rowToUpdate, 1, 1, rowData.length).setValues([rowData]);
         return jsonResponse({ success: true, message: 'Updated Successfully', patientId: patientId });
-      } else {
-        // Fallback: append if ID not found for some reason
-        sheet.appendRow(rowData);
-        return jsonResponse({ success: true, message: 'Saved as New (ID not found for update)', patientId: patientId });
       }
-    } else {
-      // SAVE NEW ROW
-      sheet.appendRow(rowData);
-      return jsonResponse({ success: true, message: 'Saved Successfully', patientId: patientId });
-    }
+    } 
+    
+    sheet.appendRow(rowData);
+    return jsonResponse({ success: true, message: 'Saved Successfully', patientId: patientId });
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
 }
 
-/**
- * Upload Helper
- */
 function uploadFile(base64Data, fileName, contentType) {
   const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
   const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
-  
   const decodedData = Utilities.base64Decode(base64Data.split(',')[1]);
   const blob = Utilities.newBlob(decodedData, contentType, fileName);
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  
   return file.getUrl();
 }
 
