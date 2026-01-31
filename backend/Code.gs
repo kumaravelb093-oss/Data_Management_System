@@ -10,6 +10,42 @@ const CONFIG = {
 };
 
 /**
+ * 0. INITIALIZE SYSTEM
+ * Run this function manually in the script editor to setup Headers and Drive Folder.
+ */
+function initializeSystem() {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    
+    // A. Setup Sheet Headers
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+    }
+    
+    const headers = [
+      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+      'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+    ];
+    
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
+    
+    // B. Setup Drive Folder
+    const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
+    const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
+    folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    Logger.log('Initialization Successful!');
+    return "Setup Complete! Folder and Sheet are ready.";
+  } catch (e) {
+    Logger.log('Init Error: ' + e.toString());
+    return "Error: " + e.toString();
+  }
+}
+
+/**
  * 1. REST GET ENDPOINT
  */
 function doGet(e) {
