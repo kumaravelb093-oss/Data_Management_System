@@ -1,48 +1,46 @@
 /**
- * GURU ORTHO CLINIC - PHYSIOTRACK PROFESSIONAL EDITION
- * Comprehensive 22-Column Clinical Database REST API
+ * GURU ORTHO CLINIC - PRODUCTION REST API
+ * Features: Auto-Setup, Image-to-Sheet Sync, Record Update (No Duplicates)
  */
 
 const CONFIG = {
-  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ',
-  SHEET_NAME: 'Clinical_Registry',
-  UPLOAD_FOLDER_NAME: 'Clinic_Cloud_Media'
+  SHEET_ID: '1HBMI4_yxHCeF7zNvxuwuMbk4oB7tegsqDT9io-RBCcQ', // MUST REPLACE WITH YOUR SHEET ID
+  SHEET_NAME: 'Patients',
+  UPLOAD_FOLDER_NAME: 'Clinic_Media'
 };
-
-const HEADERS = [
-  'Timestamp', 'Patient ID', 'Full Name', 'Age', 'Gender', 'Mobile', 'Alt Mobile', 
-  'Village', 'Taluk', 'District', 'Full Address', 'Registration Date', 
-  'Visit Type', 'Purpose of Visit', 'Clinical Diagnosis', 'Clinical Notes', 
-  'Treatment Plan', 'Medicines', 'Next Review Date', 'Media URL', 
-  'Appointment Status', 'Operator'
-];
 
 /**
  * 0. INITIALIZE SYSTEM
- * Resets/Setup the professional 22-column header.
+ * Run this function manually in the script editor to setup Headers and Drive Folder.
  */
 function initializeSystem() {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-    if (!sheet) sheet = ss.insertSheet(CONFIG.SHEET_NAME);
     
-    sheet.clear();
-    sheet.appendRow(HEADERS);
+    // A. Setup Sheet Headers
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+    }
+    
+    const headers = [
+      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+      'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+    ];
+    
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, HEADERS.length)
-         .setBackground('#0F172A')
-         .setFontColor('#FFFFFF')
-         .setFontWeight('bold')
-         .setHorizontalAlignment('center');
+    sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
     
-    // Auto-setup Drive Folder
+    // B. Setup Drive Folder
     const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    return "PhysioTrack Schema Initialized! 22 Columns Ready.";
+    Logger.log('Initialization Successful!');
+    return "Setup Complete! Folder and Sheet are ready.";
   } catch (e) {
+    Logger.log('Init Error: ' + e.toString());
     return "Error: " + e.toString();
   }
 }
@@ -71,7 +69,7 @@ function doGet(e) {
       return obj;
     });
 
-    return jsonResponse(results.reverse()); // Newest entries top
+    return jsonResponse(results.reverse()); // Latest entries at the top
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
@@ -79,15 +77,26 @@ function doGet(e) {
 
 /**
  * 2. REST POST ENDPOINT
- * Handles Create & Update with 22-column mapping.
+ * Handles both "Save" (New) and "Update" (Edit)
  */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
-    const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    
+    // Auto-create sheet & headers if missing
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.SHEET_NAME);
+      const headers = [
+        'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Mobile Number', 
+        'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+      ];
+      sheet.appendRow(headers);
+      sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
+    }
 
-    // Media Logic
+    // Handle Media (Base64)
     let mediaUrl = data.existingMediaUrl || '';
     if (data.media && data.media.base64 && data.media.base64.startsWith('data:')) {
       mediaUrl = uploadFile(data.media.base64, data.media.name, data.media.type);
@@ -95,63 +104,69 @@ function doPost(e) {
 
     const timestamp = new Date();
     const isEdit = !!data.patient_id;
-    const patientId = isEdit ? data.patient_id : ('G-' + Date.now().toString().slice(-6));
+    const patientId = isEdit ? data.patient_id : ('P-' + Date.now());
 
     const rowData = [
-      timestamp,
+      isEdit ? (data.entry_date_time || timestamp) : timestamp,
       patientId,
       data.name,
       data.age,
       data.gender,
       data.mobile,
-      data.alt_mobile || 'N/A',
-      data.village || '',
-      data.taluk || '',
-      data.district || '',
-      data.address || '',
-      data.reg_date || timestamp.toLocaleDateString(),
-      data.visit_type || 'New',
-      data.purpose || '',
-      data.diagnosis || '',
-      data.notes || '',
-      data.treatment || '',
-      data.medicines || '',
-      data.review_date || '',
+      data.diagnosis,
+      data.treatment,
+      data.remarks,
+      data.media ? data.media.type : (mediaUrl ? 'File' : 'None'),
       mediaUrl,
-      data.status || 'Active',
-      data.operator || 'Admin'
+      data.enteredBy || 'Vercel App'
     ];
 
     if (isEdit) {
+      // UPDATE EXISTING ROW (NO DUPLICATES)
       const sheetData = sheet.getDataRange().getValues();
-      let rowIdx = -1;
+      let rowToUpdate = -1;
       for (let i = 1; i < sheetData.length; i++) {
-        if (sheetData[i][1] === patientId) { rowIdx = i + 1; break; }
+        if (sheetData[i][1] === patientId) {
+          rowToUpdate = i + 1;
+          break;
+        }
       }
-      if (rowIdx !== -1) {
-        sheet.getRange(rowIdx, 1, 1, rowData.length).setValues([rowData]);
-        return jsonResponse({ success: true, message: 'Record Updated', patientId });
+
+      if (rowToUpdate !== -1) {
+        sheet.getRange(rowToUpdate, 1, 1, rowData.length).setValues([rowData]);
+        return jsonResponse({ success: true, message: 'Updated Successfully', patientId: patientId });
+      } else {
+        // Fallback: append if ID not found for some reason
+        sheet.appendRow(rowData);
+        return jsonResponse({ success: true, message: 'Saved as New (ID not found for update)', patientId: patientId });
       }
+    } else {
+      // SAVE NEW ROW
+      sheet.appendRow(rowData);
+      return jsonResponse({ success: true, message: 'Saved Successfully', patientId: patientId });
     }
-    
-    sheet.appendRow(rowData);
-    return jsonResponse({ success: true, message: 'Record Registered', patientId });
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
 }
 
+/**
+ * Upload Helper
+ */
 function uploadFile(base64Data, fileName, contentType) {
   const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
   const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
+  
   const decodedData = Utilities.base64Decode(base64Data.split(',')[1]);
   const blob = Utilities.newBlob(decodedData, contentType, fileName);
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  
   return file.getUrl();
 }
 
 function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
