@@ -1,29 +1,56 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
 
-@theme {
-  --color-primary: #1A2B3C;
-  --color-secondary: #2D4356;
-  --color-accent: #10B981;
-  --color-accent-dark: #059669;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #111827;
+  --secondary: #6B7280;
+  --accent: #2563EB;
+  --success: #10B981;
+  --bg: #FFFFFF;
+  --bg-offset: #F9FAFB;
 }
 
-@layer base {
-  body {
-    @apply antialiased text-slate-900 bg-slate-50;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-@layer components {
-  .btn-primary {
-    @apply px-6 py-3 bg-emerald-500 text-white font-semibold rounded-xl transition-all hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 active:scale-95 flex items-center justify-center gap-2;
-  }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  color: var(--primary);
+  -webkit-font-smoothing: antialiased;
+}
 
-  .card-premium {
-    @apply bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow;
-  }
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: 'Outfit', sans-serif;
+}
 
-  .input-premium {
-    @apply w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none transition-all focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10;
-  }
+/* Custom Utilities for PhysioTrack Style */
+.btn-refresh {
+  @apply flex items-center gap-2 px-4 py-2 border border-black rounded-lg text-sm font-semibold hover:bg-slate-50 transition-all;
+}
+
+.btn-new {
+  @apply flex items-center gap-2 px-6 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all;
+}
+
+.table-header {
+  @apply text-slate-500 font-bold text-sm border-b border-slate-100 pb-3;
+}
+
+.table-row {
+  @apply border-b border-slate-50 hover:bg-slate-50/50 transition-all;
+}
+
+.patient-input {
+  @apply w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 outline-none transition-all font-medium;
 }
