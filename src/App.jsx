@@ -356,7 +356,6 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <thead>
               <tr className="bg-slate-50">
                 <th>Date</th>
-                <th>ID</th>
                 <th>Name</th>
                 <th>Age</th>
                 <th>Sector</th>
@@ -372,7 +371,6 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     <div>{formatDate(getRecordDate(record))}</div>
                     <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
                   </td>
-                  <td><span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-500">{record.patient_id}</span></td>
                   <td className="font-bold text-slate-900">{record.patient_name}</td>
                   <td>{record.age}y/{record.gender?.[0]}</td>
                   <td>
@@ -404,7 +402,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                 </tr>
               ))}
               {filtered.length === 0 && !loading && (
-                <tr><td colSpan="8" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
+                <tr><td colSpan="7" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
               )}
             </tbody>
           </table>
