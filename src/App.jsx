@@ -33,10 +33,53 @@ const submitToGas = async (payload) => {
   }
 };
 
+// Helper: Parse date from various formats (Google Sheets returns different formats)
+const parseRecordDate = (dateValue) => {
+  if (!dateValue) return null;
+
+  // If it's already a Date object or a valid date string
+  const parsed = new Date(dateValue);
+  if (!isNaN(parsed.getTime())) return parsed;
+
+  // Try parsing Google Sheets date format (may be a number representing days since epoch)
+  if (typeof dateValue === 'number') {
+    // Google Sheets epoch starts from Dec 30, 1899
+    const sheetsEpoch = new Date(1899, 11, 30);
+    const result = new Date(sheetsEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
+    if (!isNaN(result.getTime())) return result;
+  }
+
+  return null;
+};
+
+// Helper: Format date for display
+const formatDate = (dateValue) => {
+  const date = parseRecordDate(dateValue);
+  if (!date) return 'N/A';
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+// Helper: Format time for display
+const formatTime = (dateValue) => {
+  const date = parseRecordDate(dateValue);
+  if (!date) return '';
+  return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Helper: Check if date is today
+const isToday = (dateValue) => {
+  const date = parseRecordDate(dateValue);
+  if (!date) return false;
+
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+};
+
 // Helper: Convert Google Drive URL to viewable image URL
 const getViewableImageUrl = (url) => {
   if (!url) return null;
-  // Google Drive file URL pattern
   if (url.includes('drive.google.com')) {
     const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     if (fileIdMatch) {
@@ -48,6 +91,11 @@ const getViewableImageUrl = (url) => {
     }
   }
   return url;
+};
+
+// Helper: Get record date field (handles different field names)
+const getRecordDate = (record) => {
+  return record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp;
 };
 
 const App = () => {
@@ -188,20 +236,13 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
-  // Optimized: Memoize date calculations
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  // Optimized: Memoize stats calculation
+  // Optimized: Memoize stats calculation with proper date parsing
   const stats = useMemo(() => ({
-    today: records.filter(r => new Date(r.entry_date_time) >= today).length,
+    today: records.filter(r => isToday(getRecordDate(r))).length,
     op: records.filter(r => r.service_type?.trim().toUpperCase() === 'OP').length,
     ip: records.filter(r => r.service_type?.trim().toUpperCase() === 'IP').length,
     total: records.length
-  }), [records, today]);
+  }), [records]);
 
   // Optimized: Memoize filtered records
   const filtered = useMemo(() => {
@@ -225,7 +266,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6">
 
-      {/* Stats Grid - Compact for Mobile */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-amber-600" />
         <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-blue-600" />
@@ -272,18 +313,14 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-slate-100">
           {filtered.slice(0, 50).map((record, i) => (
-            <div
-              key={i}
-              onClick={() => onViewRecord(record)}
-              className="p-4 active:bg-slate-50 transition-colors flex items-start justify-between gap-3"
-            >
+            <div key={i} className="p-4 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                     {record.service_type || 'OP'}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400">{record.patient_id}</span>
+                  <span className="text-[9px] font-bold text-slate-400">{formatDate(getRecordDate(record))}</span>
                 </div>
                 <h3 className="font-bold text-slate-900 text-sm truncate">{record.patient_name}</h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">{record.age}y • {record.mobile_number}</p>
@@ -291,7 +328,21 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                   <p className="text-[10px] text-slate-400 mt-1 truncate italic">"{record.chief_complaint}"</p>
                 )}
               </div>
-              <ArrowRight className="text-slate-300 flex-shrink-0 mt-2" size={14} />
+              {/* Mobile Action Buttons */}
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => onViewRecord(record)}
+                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all"
+                >
+                  <Eye size={14} />
+                </button>
+                <button
+                  onClick={() => onEditRecord(record)}
+                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-amber-100 hover:text-amber-600 transition-all"
+                >
+                  <Edit3 size={14} />
+                </button>
+              </div>
             </div>
           ))}
           {filtered.length === 0 && !loading && (
@@ -311,13 +362,15 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                 <th>Sector</th>
                 <th>Chief Complaint</th>
                 <th>Contact</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.slice(0, 100).map((record, i) => (
-                <tr key={i} onClick={() => onViewRecord(record)} className="table-row">
+                <tr key={i} className="table-row hover:bg-slate-50">
                   <td className="whitespace-nowrap text-xs">
-                    {new Date(record.entry_date_time).toLocaleDateString()}
+                    <div>{formatDate(getRecordDate(record))}</div>
+                    <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
                   </td>
                   <td><span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-500">{record.patient_id}</span></td>
                   <td className="font-bold text-slate-900">{record.patient_name}</td>
@@ -330,10 +383,28 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                   </td>
                   <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || '-'}</td>
                   <td className="text-xs">{record.mobile_number}</td>
+                  <td>
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onViewRecord(record); }}
+                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all"
+                        title="View Details"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onEditRecord(record); }}
+                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-amber-100 hover:text-amber-600 transition-all"
+                        title="Edit Record"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && !loading && (
-                <tr><td colSpan="7" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
+                <tr><td colSpan="8" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
               )}
             </tbody>
           </table>
@@ -452,7 +523,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         ...formData,
         media,
         patient_id: editData?.patient_id || null,
-        entry_date_time: editData?.entry_date_time || null,
+        entry_date_time: editData ? getRecordDate(editData) : null,
         existingMediaUrl: editData?.media_file_url || '',
         enteredBy: 'Practitioner'
       };
@@ -597,6 +668,7 @@ const AreaField = ({ label, rows = 3, value, onChange, placeholder }) => (
 
 const Modal = ({ record, onClose, onEdit }) => {
   const imageUrl = useMemo(() => getViewableImageUrl(record.media_file_url), [record.media_file_url]);
+  const recordDate = getRecordDate(record);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
@@ -633,7 +705,7 @@ const Modal = ({ record, onClose, onEdit }) => {
             <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender}`} icon={<User size={12} />} />
             <InfoItem label="Contact" value={record.mobile_number} icon={<Phone size={12} />} />
             <InfoItem label="Occupation" value={record.occupation || '-'} icon={<Briefcase size={12} />} />
-            <InfoItem label="Date" value={new Date(record.entry_date_time).toLocaleDateString()} icon={<Calendar size={12} />} />
+            <InfoItem label="Date" value={formatDate(recordDate)} icon={<Calendar size={12} />} />
           </div>
 
           {/* Address */}
@@ -654,26 +726,26 @@ const Modal = ({ record, onClose, onEdit }) => {
             <DataBlock label="Remarks" value={record.remarks} />
           </div>
 
-          {/* Media Display - Fixed Image Rendering */}
+          {/* Media Display */}
           {record.media_file_url && (
             <div className="space-y-2">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Camera size={12} /> Diagnostic Media
               </p>
-              <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
                     alt="Diagnostic"
-                    className="w-full h-auto max-h-[300px] object-contain bg-black"
+                    className="w-full h-auto max-h-[300px] object-contain"
                     loading="lazy"
                     onError={(e) => {
                       e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
+                      if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                     }}
                   />
                 ) : null}
-                <div className="w-full py-10 flex-col items-center justify-center text-center hidden">
+                <div className="w-full py-10 flex-col items-center justify-center text-center hidden bg-slate-900">
                   <FileText className="text-slate-400 mb-2" size={32} />
                   <p className="text-xs font-bold text-slate-500 mb-3">Media Attached</p>
                   <a
@@ -685,7 +757,6 @@ const Modal = ({ record, onClose, onEdit }) => {
                     Open in Drive
                   </a>
                 </div>
-                {/* Fallback link always visible */}
                 <div className="absolute bottom-2 right-2">
                   <a
                     href={record.media_file_url}
