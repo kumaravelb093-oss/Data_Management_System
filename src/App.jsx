@@ -134,6 +134,7 @@ const App = () => {
   }, []);
 
   const handleEdit = useCallback((record) => {
+    setSelectedRecord(null);
     setEditingRecord(record);
     setView('register');
   }, []);
@@ -585,7 +586,14 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                 {media ? (
                   media.type.startsWith('image') ? <img src={media.base64} className="w-full h-full object-contain bg-black" /> : <video src={media.base64} className="w-full h-full object-contain" controls />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500 text-[10px] font-bold uppercase tracking-widest">Existing Media Preserved</div>
+                  <div className="w-full h-full relative">
+                    {editData.media_type === 'image/jpeg' || editData.media_type === 'image/png' || editData.media_file_url.match(/\.(jpg|jpeg|png|gif)$/i) || !editData.media_file_url.includes('video') ? (
+                       <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
+                    ) : (
+                       <video src={editData.media_file_url} className="w-full h-full object-contain" controls />
+                    )}
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Existing Media</div>
+                  </div>
                 )}
                 <button type="button" onClick={() => { setMedia(null); startStream(); }} className="absolute top-3 right-3 p-2 bg-white shadow-lg text-rose-500 rounded-lg"> <RotateCcw size={16} /> </button>
               </div>
