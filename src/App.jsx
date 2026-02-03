@@ -269,10 +269,10 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-        <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-amber-600" />
-        <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-blue-600" />
-        <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-indigo-600" />
-        <StatItem label="Total" value={stats.total} icon={<Users size={16} />} color="text-slate-600" />
+        <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-amber-700" />
+        <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-blue-700" />
+        <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-indigo-700" />
+        <StatItem label="Total" value={stats.total} icon={<Users size={16} />} color="text-slate-800" />
       </div>
 
       {/* Tabs + Search Row */}
@@ -282,7 +282,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 text-[11px] md:text-sm font-bold tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-400'
+              className={`pb-2 text-[11px] md:text-sm font-black tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-700' : 'text-slate-500'
                 }`}
             >
               {tab}
@@ -321,12 +321,12 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     }`}>
                     {record.service_type || 'OP'}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400">{formatDate(getRecordDate(record))}</span>
+                  <span className="text-[10px] font-black text-slate-500">{formatDate(getRecordDate(record))}</span>
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm truncate">{record.patient_name}</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">{record.age}y • {record.mobile_number}</p>
+                <h3 className="font-black text-slate-900 text-sm truncate">{record.patient_name}</h3>
+                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age}y • {record.mobile_number}</p>
                 {record.chief_complaint && (
-                  <p className="text-[10px] text-slate-400 mt-1 truncate italic">"{record.chief_complaint}"</p>
+                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{record.chief_complaint}"</p>
                 )}
               </div>
               {/* Mobile Action Buttons */}
@@ -355,14 +355,14 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full patient-table border-collapse">
             <thead>
-              <tr className="bg-slate-50">
-                <th>Date</th>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Sector</th>
-                <th>Chief Complaint</th>
-                <th>Contact</th>
-                <th className="text-center">Actions</th>
+              <tr className="bg-slate-100 italic">
+                <th className="text-slate-700 font-black">Date</th>
+                <th className="text-slate-700 font-black">Name</th>
+                <th className="text-slate-700 font-black">Age</th>
+                <th className="text-slate-700 font-black">Sector</th>
+                <th className="text-slate-700 font-black">Chief Complaint</th>
+                <th className="text-slate-700 font-black">Contact</th>
+                <th className="text-center text-slate-700 font-black">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -421,7 +421,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
 const StatItem = ({ label, value, icon, color }) => (
   <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-slate-200 flex items-center justify-between gap-2 shadow-sm">
     <div>
-      <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+      <p className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">{label}</p>
       <p className="text-lg md:text-2xl font-black text-slate-900 leading-none">{value}</p>
     </div>
     <div className={`p-2 md:p-3 rounded-lg md:rounded-xl bg-slate-50 ${color}`}>
@@ -641,20 +641,20 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
 
 const TextField = ({ label, type = 'text', required, value, onChange }) => (
   <div className="space-y-1">
-    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <input
       type={type} required={required} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-700 text-sm"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-black text-slate-800 text-sm"
     />
   </div>
 );
 
 const SelectBox = ({ label, value, options, onChange }) => (
   <div className="space-y-1">
-    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <select
       value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-700 text-sm appearance-none cursor-pointer"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-black text-slate-800 text-sm appearance-none cursor-pointer"
     >
       {options.map(o => <option key={o}>{o}</option>)}
     </select>
@@ -663,10 +663,10 @@ const SelectBox = ({ label, value, options, onChange }) => (
 
 const AreaField = ({ label, rows = 3, value, onChange, placeholder }) => (
   <div className="space-y-1">
-    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <textarea
       rows={rows} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-medium text-slate-600 text-sm resize-none"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-800 text-sm resize-none"
       placeholder={placeholder}
     />
   </div>
