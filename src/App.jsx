@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   UserPlus, Camera, Video, Stethoscope, Phone, MapPin,
   CheckCircle2, AlertCircle, X, FileText, Calendar,
   ClipboardList, User, Home, Search, RefreshCw,
   Plus, Eye, RotateCcw, Play, Square, Edit3,
   ChevronRight, Activity, Database, Users, TrendingUp, Printer,
-  Clock, ArrowRight, UserCircle
+  Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -33,6 +33,23 @@ const submitToGas = async (payload) => {
   }
 };
 
+// Helper: Convert Google Drive URL to viewable image URL
+const getViewableImageUrl = (url) => {
+  if (!url) return null;
+  // Google Drive file URL pattern
+  if (url.includes('drive.google.com')) {
+    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch) {
+      return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w1000`;
+    }
+    const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (idMatch) {
+      return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`;
+    }
+  }
+  return url;
+};
+
 const App = () => {
   const [view, setView] = useState('home');
   const [records, setRecords] = useState([]);
@@ -45,7 +62,7 @@ const App = () => {
     loadRecords();
   }, []);
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     setLoading(true);
     try {
       if (!API_URL) return;
@@ -56,64 +73,64 @@ const App = () => {
       });
       const data = await response.json();
       setRecords(Array.isArray(data) ? data : []);
-      setLoading(false);
     } catch (e) {
-      setLoading(false);
       showNotification('Sync Error: Check Authorization', 'error');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const showNotification = (msg, type = 'success') => {
+  const showNotification = useCallback((msg, type = 'success') => {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 3500);
-  };
+  }, []);
 
-  const handleEdit = (record) => {
+  const handleEdit = useCallback((record) => {
     setEditingRecord(record);
     setView('register');
-  };
+  }, []);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     setEditingRecord(null);
     setView('register');
-  };
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 overflow-x-hidden">
       {/* Responsive Professional Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-20 md:h-16 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
               <Stethoscope className="text-white" size={20} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-none">Guru Ortho</h1>
-              <span className="text-[8px] md:text-[10px] font-bold text-blue-600 uppercase tracking-widest opacity-80 hidden xs:block">Management System</span>
+              <h1 className="text-base md:text-xl font-black tracking-tight text-slate-900 leading-none">Guru Ortho</h1>
+              <span className="text-[8px] md:text-[10px] font-bold text-blue-600 uppercase tracking-widest opacity-80 hidden sm:block">Management System</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2">
             {view !== 'home' && (
               <button
                 onClick={() => setView('home')}
-                className="clinical-btn-secondary p-2 md:px-4 md:py-2"
+                className="clinical-btn-secondary p-2"
               >
-                <Home size={18} className="md:mr-none" /> <span className="hidden sm:inline">Dashboard</span>
+                <Home size={18} />
               </button>
             )}
             <button
               onClick={handleAdd}
               className="clinical-btn-primary p-2 md:px-4 md:py-2 text-[10px] md:text-sm whitespace-nowrap"
             >
-              <Plus size={18} className="md:mr-none" /> <span className="hidden xs:inline">Add Patient</span><span className="xs:hidden">New</span>
+              <Plus size={18} /> <span className="hidden sm:inline">New</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-3 md:p-6 lg:p-8">
         <AnimatePresence mode="wait">
           {view === 'home' && (
             <Dashboard
@@ -121,7 +138,7 @@ const App = () => {
               records={records}
               loading={loading}
               onRefresh={loadRecords}
-              onViewRecord={(rec) => setSelectedRecord(rec)}
+              onViewRecord={setSelectedRecord}
               onEditRecord={handleEdit}
             />
           )}
@@ -155,10 +172,10 @@ const App = () => {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className={`fixed bottom-4 right-4 md:bottom-8 md:right-8 px-5 py-3 md:px-6 md:py-4 rounded-xl shadow-2xl text-white font-bold text-xs md:text-sm z-[100] flex items-center gap-3 max-w-[90vw] ${notification.type === 'error' ? 'bg-rose-600' : 'bg-slate-900'
+            className={`fixed bottom-4 right-4 md:bottom-8 md:right-8 px-4 py-3 md:px-6 md:py-4 rounded-xl shadow-2xl text-white font-bold text-xs md:text-sm z-[100] flex items-center gap-2 max-w-[90vw] ${notification.type === 'error' ? 'bg-rose-600' : 'bg-slate-900'
               }`}
           >
-            {notification.type === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
+            {notification.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
             {notification.msg}
           </motion.div>
         )}
@@ -169,173 +186,176 @@ const App = () => {
 
 const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('All'); // 'All', 'OP', 'IP'
+  const [activeTab, setActiveTab] = useState('All');
 
-  // Date-based Timeline Calculations
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Optimized: Memoize date calculations
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
-  const stats = {
+  // Optimized: Memoize stats calculation
+  const stats = useMemo(() => ({
     today: records.filter(r => new Date(r.entry_date_time) >= today).length,
     op: records.filter(r => r.service_type?.trim().toUpperCase() === 'OP').length,
     ip: records.filter(r => r.service_type?.trim().toUpperCase() === 'IP').length,
     total: records.length
-  };
+  }), [records, today]);
 
-  const filtered = records.filter(r => {
-    // Search normalization
+  // Optimized: Memoize filtered records
+  const filtered = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
-    const matchesSearch = search === '' || (
-      r.patient_name?.toLowerCase().includes(search) ||
-      String(r.mobile_number).includes(search) ||
-      r.patient_id?.toLowerCase().includes(search)
-    );
+    return records.filter(r => {
+      const matchesSearch = search === '' || (
+        r.patient_name?.toLowerCase().includes(search) ||
+        String(r.mobile_number).includes(search) ||
+        r.patient_id?.toLowerCase().includes(search) ||
+        r.address?.toLowerCase().includes(search) ||
+        r.chief_complaint?.toLowerCase().includes(search)
+      );
 
-    // Tab filtering with normalization
-    const recordSector = r.service_type?.trim().toUpperCase();
-    const targetSector = activeTab.trim().toUpperCase();
+      const recordSector = r.service_type?.trim().toUpperCase();
+      const matchesTab = activeTab === 'All' || recordSector === activeTab;
 
-    const matchesTab = activeTab === 'All' || recordSector === targetSector;
-
-    return matchesSearch && matchesTab;
-  });
+      return matchesSearch && matchesTab;
+    });
+  }, [records, searchTerm, activeTab]);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 md:space-y-8">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6">
 
-      {/* Stats - More Adaptive Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatItem label="Admission Today" value={stats.today} icon={<Clock size={20} />} color="text-amber-600" />
-        <StatItem label="Out-Patient (OP)" value={stats.op} icon={<TrendingUp size={20} />} color="text-blue-600" />
-        <StatItem label="In-Patient (IP)" value={stats.ip} icon={<Activity size={20} />} color="text-indigo-600" />
-        <StatItem label="Total Registry" value={stats.total} icon={<Users size={20} />} color="text-slate-600" />
+      {/* Stats Grid - Compact for Mobile */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-amber-600" />
+        <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-blue-600" />
+        <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-indigo-600" />
+        <StatItem label="Total" value={stats.total} icon={<Users size={16} />} color="text-slate-600" />
       </div>
 
-      {/* Sector Navigation - Better Spacing on Mobile */}
-      <div className="flex items-center justify-between border-b border-slate-200 overflow-x-auto no-scrollbar">
-        <div className="flex gap-4 md:gap-8 min-w-max px-1">
+      {/* Tabs + Search Row */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex gap-4 md:gap-6 overflow-x-auto no-scrollbar">
           {['All', 'OP', 'IP'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-[10px] md:text-sm font-bold tracking-widest uppercase transition-all relative ${activeTab === tab ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+              className={`pb-2 text-[11px] md:text-sm font-bold tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-400'
                 }`}
             >
-              {tab} Patients
+              {tab}
               {activeTab === tab && (
                 <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
               )}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 md:gap-3 pb-3 flex-shrink-0">
-          <button onClick={onRefresh} className="text-slate-400 hover:text-blue-600 transition-all p-2 rounded-lg hover:bg-white border border-transparent hover:border-slate-100">
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-blue-600 transition-all bg-white border border-slate-200 rounded-xl">
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* Search Bar - Larger for Mobile */}
-      <div className="relative group w-full lg:max-w-2xl">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
-        <input
-          type="text"
-          placeholder={`Search ${activeTab === 'All' ? 'all' : activeTab} records...`}
-          className="w-full pl-12 pr-4 py-3.5 md:py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all font-medium text-base md:text-lg shadow-sm"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Responsive Table / Card View Toggle */}
+      {/* Mobile Card View + Desktop Table */}
       <div className="glass-card overflow-hidden">
-        {/* Mobile-First Card View (shown only on mobile) */}
-        <div className="md:hidden space-y-[1px] bg-slate-100">
-          {filtered.map((record, i) => (
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {filtered.slice(0, 50).map((record, i) => (
             <div
               key={i}
               onClick={() => onViewRecord(record)}
-              className="bg-white p-5 active:bg-slate-50 transition-colors flex items-center justify-between gap-4"
+              className="p-4 active:bg-slate-50 transition-colors flex items-start justify-between gap-3"
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`px-2 py-0.5 rounded-[4px] text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                     {record.service_type || 'OP'}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{record.patient_id}</span>
+                  <span className="text-[9px] font-bold text-slate-400">{record.patient_id}</span>
                 </div>
-                <h3 className="font-bold text-slate-900 truncate">{record.patient_name}</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">{record.age}y / {record.gender} • {record.mobile_number}</p>
+                <h3 className="font-bold text-slate-900 text-sm truncate">{record.patient_name}</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">{record.age}y • {record.mobile_number}</p>
+                {record.chief_complaint && (
+                  <p className="text-[10px] text-slate-400 mt-1 truncate italic">"{record.chief_complaint}"</p>
+                )}
               </div>
-              <ArrowRight className="text-slate-300 flex-shrink-0" size={16} />
+              <ArrowRight className="text-slate-300 flex-shrink-0 mt-2" size={14} />
             </div>
           ))}
           {filtered.length === 0 && !loading && (
-            <div className="bg-white py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No matching records found.</div>
+            <div className="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No records found</div>
           )}
         </div>
 
-        {/* Desktop Table View (hidden on mobile) */}
+        {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full patient-table border-collapse">
             <thead>
               <tr className="bg-slate-50">
-                <th>Entry Date & Time</th>
-                <th>Patient ID</th>
-                <th>Patient Name</th>
-                <th>Age/Gender</th>
+                <th>Date</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
                 <th>Sector</th>
+                <th>Chief Complaint</th>
                 <th>Contact</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((record, i) => (
+              {filtered.slice(0, 100).map((record, i) => (
                 <tr key={i} onClick={() => onViewRecord(record)} className="table-row">
-                  <td className="whitespace-nowrap">
+                  <td className="whitespace-nowrap text-xs">
                     {new Date(record.entry_date_time).toLocaleDateString()}
-                    <span className="text-[10px] text-slate-400 ml-2">{new Date(record.entry_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </td>
-                  <td><span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold text-slate-500">{record.patient_id}</span></td>
+                  <td><span className="px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-500">{record.patient_id}</span></td>
                   <td className="font-bold text-slate-900">{record.patient_name}</td>
-                  <td>{record.age}y / {record.gender}</td>
+                  <td>{record.age}y/{record.gender?.[0]}</td>
                   <td>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
                       }`}>
                       {record.service_type || 'OP'}
                     </span>
                   </td>
-                  <td>{record.mobile_number}</td>
+                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || '-'}</td>
+                  <td className="text-xs">{record.mobile_number}</td>
                 </tr>
               ))}
               {filtered.length === 0 && !loading && (
-                <tr>
-                  <td colSpan="6" className="py-20 text-center text-slate-400 font-medium whitespace-nowrap">
-                    No registry records found for your search criteria.
-                  </td>
-                </tr>
+                <tr><td colSpan="7" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest pb-10">
+      <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest pb-8">
         <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-        Cloud Data Management Active • {records.length} Records Synced
+        {records.length} Records • Cloud Sync Active
       </div>
     </motion.div>
   );
 };
 
 const StatItem = ({ label, value, icon, color }) => (
-  <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-center md:justify-between text-center md:text-left gap-3 shadow-sm hover:shadow-md transition-all">
-    <div className="order-2 md:order-1">
-      <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 md:mb-2">{label}</p>
-      <p className="text-xl md:text-3xl font-black text-slate-900 leading-none">{value}</p>
+  <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-slate-200 flex items-center justify-between gap-2 shadow-sm">
+    <div>
+      <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+      <p className="text-lg md:text-2xl font-black text-slate-900 leading-none">{value}</p>
     </div>
-    <div className={`order-1 md:order-2 p-2 md:p-4 rounded-xl bg-slate-50 ${color} shadow-inner`}>
-      {React.cloneElement(icon, { size: 16 })}
+    <div className={`p-2 md:p-3 rounded-lg md:rounded-xl bg-slate-50 ${color}`}>
+      {icon}
     </div>
   </div>
 );
@@ -343,7 +363,8 @@ const StatItem = ({ label, value, icon, color }) => (
 const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '', age: '', gender: 'Male', mobile: '',
-    service_type: 'OP',
+    service_type: 'OP', address: '', occupation: '',
+    chief_complaint: '', medical_history: '',
     diagnosis: '', treatment: '', remarks: ''
   });
   const [media, setMedia] = useState(null);
@@ -362,6 +383,10 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         gender: editData.gender || 'Male',
         mobile: editData.mobile_number || '',
         service_type: editData.service_type || 'OP',
+        address: editData.address || '',
+        occupation: editData.occupation || '',
+        chief_complaint: recordValue(editData.chief_complaint),
+        medical_history: recordValue(editData.medical_history),
         diagnosis: recordValue(editData.diagnosis),
         treatment: recordValue(editData.treatment),
         remarks: recordValue(editData.remarks)
@@ -369,7 +394,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     }
   }, [editData]);
 
-  const recordValue = (val) => val === 'No entry documented' ? '' : val;
+  const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
     if (!media) startStream();
@@ -429,7 +454,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         patient_id: editData?.patient_id || null,
         entry_date_time: editData?.entry_date_time || null,
         existingMediaUrl: editData?.media_file_url || '',
-        enteredBy: 'Practioner'
+        enteredBy: 'Practitioner'
       };
       const res = await submitToGas(payload);
       if (res.success) onSuccess(res.message);
@@ -438,88 +463,98 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     finally { setIsSubmitting(false); }
   };
 
+  const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto pb-20">
-      <div className="flex items-center justify-between mb-6 md:mb-8 px-2">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">{editData ? 'Modify Admission' : 'Admission Protocol'}</h2>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Clinical Management Flow</p>
+          <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{editData ? 'Modify Record' : 'New Admission'}</h2>
+          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Patient Registration</p>
         </div>
         <button onClick={onCancel} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-white rounded-xl shadow-sm border border-slate-100">
-          <X size={20} />
+          <X size={18} />
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          {/* Identity Section */}
-          <section className="glass-card p-6 md:p-8 space-y-6">
-            <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-4">
-              <UserCircle size={14} /> Identity & Sector
-            </h4>
-            <div className="space-y-5">
-              <TextField label="Patient Full Name" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} />
-              <div className="grid grid-cols-2 gap-4">
-                <TextField label="Age" type="number" required value={formData.age} onChange={v => setFormData({ ...formData, age: v })} />
-                <SelectBox label="Gender" value={formData.gender} options={['Male', 'Female', 'Other']} onChange={v => setFormData({ ...formData, gender: v })} />
-              </div>
-              <TextField label="Mobile Number" required value={formData.mobile} onChange={v => setFormData({ ...formData, mobile: v })} />
-              <SelectBox label="Hosp. Sector (OP/IP)" value={formData.service_type} options={['OP', 'IP']} onChange={v => setFormData({ ...formData, service_type: v })} />
-            </div>
-          </section>
-
-          {/* Multimedia Diagnostic Section */}
-          <section className="glass-card p-6 md:p-8 space-y-6 flex flex-col">
-            <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-4">
-              <Camera size={14} /> Diagnostic Clinical Media
-            </h4>
-            <div className="flex-1 aspect-video bg-slate-900 rounded-[20px] md:rounded-[24px] overflow-hidden relative shadow-inner border-2 border-slate-100">
-              {media || (editData?.media_file_url && !media) ? (
-                <div className="w-full h-full relative">
-                  {media ? (
-                    media.type.startsWith('image') ? <img src={media.base64} className="w-full h-full object-cover" /> : <video src={media.base64} className="w-full h-full object-cover" controls />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500 text-[10px] font-bold uppercase tracking-widest text-center px-6">Media Securely Attached</div>
-                  )}
-                  <button type="button" onClick={() => { setMedia(null); startStream(); }} className="absolute top-3 right-3 p-3 bg-white shadow-xl text-rose-500 rounded-xl hover:bg-rose-50 transition-all"> <RotateCcw size={18} /> </button>
-                </div>
-              ) : (
-                <>
-                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-60" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 md:gap-6">
-                    <div className="flex bg-white/10 backdrop-blur-3xl p-1 rounded-xl border border-white/20">
-                      <button type="button" onClick={() => setMode('camera')} className={`px-4 md:px-6 py-1.5 md:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-slate-900 shadow-xl' : 'text-white'}`}>X-Ray</button>
-                      <button type="button" onClick={() => setMode('video')} className={`px-4 md:px-6 py-1.5 md:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-slate-900 shadow-xl' : 'text-white'}`}>Video</button>
-                    </div>
-                    {mode === 'camera' ? (
-                      <button type="button" onClick={capturePhoto} className="w-14 h-14 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-all border-4 border-slate-50/20"> <Camera size={24} className="text-blue-600" /> </button>
-                    ) : (
-                      <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-all border-4 ${isRecording ? 'bg-rose-500 border-rose-100 animate-pulse' : 'bg-white border-slate-50/20'}`}> {isRecording ? <Square size={20} className="text-white" /> : <Play size={20} className="text-blue-600 ml-1" />} </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Cloud Storage Protocol Active</p>
-          </section>
-        </div>
-
-        {/* Observation Section */}
-        <section className="glass-card p-6 md:p-10 space-y-6 md:space-y-8">
-          <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-4">
-            <ClipboardList size={14} /> Clinical Observation Protocol
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+        {/* Identity & Contact Section */}
+        <section className="glass-card p-4 md:p-6 space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+            <UserCircle size={12} /> Patient Identity
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            <AreaField label="Diagnosis Details" value={formData.diagnosis} onChange={v => setFormData({ ...formData, diagnosis: v })} />
-            <AreaField label="Treatment Protocol" value={formData.treatment} onChange={v => setFormData({ ...formData, treatment: v })} />
-            <AreaField label="Special Case Remarks" value={formData.remarks} onChange={v => setFormData({ ...formData, remarks: v })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TextField label="Full Name" required value={formData.name} onChange={v => updateField('name', v)} />
+            <TextField label="Mobile" required value={formData.mobile} onChange={v => updateField('mobile', v)} />
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+            <TextField label="Age" type="number" required value={formData.age} onChange={v => updateField('age', v)} />
+            <SelectBox label="Gender" value={formData.gender} options={['Male', 'Female', 'Other']} onChange={v => updateField('gender', v)} />
+            <SelectBox label="Sector" value={formData.service_type} options={['OP', 'IP']} onChange={v => updateField('service_type', v)} />
+            <TextField label="Occupation" value={formData.occupation} onChange={v => updateField('occupation', v)} />
+          </div>
+          <AreaField label="Address" rows={2} value={formData.address} onChange={v => updateField('address', v)} placeholder="Patient's address..." />
+        </section>
+
+        {/* Clinical Assessment Section */}
+        <section className="glass-card p-4 md:p-6 space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+            <HeartPulse size={12} /> Clinical Assessment
+          </h4>
+          <AreaField label="Chief Complaint" rows={2} value={formData.chief_complaint} onChange={v => updateField('chief_complaint', v)} placeholder="Primary symptoms and concerns..." />
+          <AreaField label="Medical History" rows={2} value={formData.medical_history} onChange={v => updateField('medical_history', v)} placeholder="Past medical history, surgeries, allergies..." />
+        </section>
+
+        {/* Multimedia Section */}
+        <section className="glass-card p-4 md:p-6 space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+            <Camera size={12} /> Diagnostic Media
+          </h4>
+          <div className="aspect-video max-h-[200px] md:max-h-[280px] bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden relative">
+            {media || (editData?.media_file_url && !media) ? (
+              <div className="w-full h-full relative">
+                {media ? (
+                  media.type.startsWith('image') ? <img src={media.base64} className="w-full h-full object-contain bg-black" /> : <video src={media.base64} className="w-full h-full object-contain" controls />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500 text-[10px] font-bold uppercase tracking-widest">Existing Media Preserved</div>
+                )}
+                <button type="button" onClick={() => { setMedia(null); startStream(); }} className="absolute top-3 right-3 p-2 bg-white shadow-lg text-rose-500 rounded-lg"> <RotateCcw size={16} /> </button>
+              </div>
+            ) : (
+              <>
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-50" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <div className="flex bg-white/10 backdrop-blur-xl p-1 rounded-lg">
+                    <button type="button" onClick={() => setMode('camera')} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${mode === 'camera' ? 'bg-white text-slate-900' : 'text-white'}`}>Photo</button>
+                    <button type="button" onClick={() => setMode('video')} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${mode === 'video' ? 'bg-white text-slate-900' : 'text-white'}`}>Video</button>
+                  </div>
+                  {mode === 'camera' ? (
+                    <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all"> <Camera size={20} className="text-blue-600" /> </button>
+                  ) : (
+                    <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}> {isRecording ? <Square size={18} className="text-white" /> : <Play size={18} className="text-blue-600 ml-0.5" />} </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </section>
 
-        <div className="flex flex-col md:flex-row gap-3 pt-4">
-          <button type="button" onClick={onCancel} className="md:flex-1 py-4 md:py-5 bg-slate-100 text-slate-500 rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-slate-200 transition-all">Cancel</button>
-          <button type="submit" disabled={isSubmitting} className="md:flex-[2] py-4 md:py-5 bg-blue-600 text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-4">
-            {isSubmitting ? <RefreshCw className="animate-spin" size={20} /> : (editData ? 'Commit Record Update' : 'Initialize Admission Sync')}
+        {/* Treatment Section */}
+        <section className="glass-card p-4 md:p-6 space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+            <ClipboardList size={12} /> Treatment Protocol
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AreaField label="Diagnosis" rows={3} value={formData.diagnosis} onChange={v => updateField('diagnosis', v)} placeholder="Clinical diagnosis..." />
+            <AreaField label="Treatment" rows={3} value={formData.treatment} onChange={v => updateField('treatment', v)} placeholder="Treatment plan..." />
+            <AreaField label="Remarks" rows={3} value={formData.remarks} onChange={v => updateField('remarks', v)} placeholder="Additional notes..." />
+          </div>
+        </section>
+
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onCancel} className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">Cancel</button>
+          <button type="submit" disabled={isSubmitting} className="flex-[2] py-3.5 bg-blue-600 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+            {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : (editData ? 'Update Record' : 'Save Record')}
           </button>
         </div>
       </form>
@@ -528,148 +563,176 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
 };
 
 const TextField = ({ label, type = 'text', required, value, onChange }) => (
-  <div className="space-y-1.5">
-    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 leading-none">{label}</label>
+  <div className="space-y-1">
+    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
     <input
       type={type} required={required} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-5 py-3 md:px-6 md:py-3.5 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-700 text-sm"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-700 text-sm"
     />
   </div>
 );
 
 const SelectBox = ({ label, value, options, onChange }) => (
-  <div className="space-y-1.5">
-    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 leading-none">{label}</label>
-    <div className="relative">
-      <select
-        value={value} onChange={e => onChange(e.target.value)}
-        className="w-full px-5 py-3 md:px-6 md:py-3.5 bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 focus:bg-white transition-all font-black text-slate-700 text-sm appearance-none cursor-pointer"
-      >
-        {options.map(o => <option key={o}>{o}</option>)}
-      </select>
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-        <ChevronRight size={14} className="rotate-90" />
-      </div>
-    </div>
+  <div className="space-y-1">
+    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <select
+      value={value} onChange={e => onChange(e.target.value)}
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-700 text-sm appearance-none cursor-pointer"
+    >
+      {options.map(o => <option key={o}>{o}</option>)}
+    </select>
   </div>
 );
 
-const AreaField = ({ label, value, onChange }) => (
-  <div className="space-y-1.5">
-    <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 leading-none">{label}</label>
+const AreaField = ({ label, rows = 3, value, onChange, placeholder }) => (
+  <div className="space-y-1">
+    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
     <textarea
-      rows={3} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-5 py-3 md:px-6 md:py-4 bg-slate-50 border border-slate-200 rounded-xl md:rounded-[24px] outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 focus:bg-white transition-all font-medium text-slate-600 text-sm resize-none leading-relaxed"
-      placeholder={`Patient's ${label.toLowerCase()}...`}
+      rows={rows} value={value} onChange={e => onChange(e.target.value)}
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-medium text-slate-600 text-sm resize-none"
+      placeholder={placeholder}
     />
   </div>
 );
 
-const Modal = ({ record, onClose, onEdit }) => (
-  <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-4">
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
-    <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} className="bg-white w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] md:rounded-[40px] shadow-2xl relative z-10 overflow-hidden flex flex-col border border-slate-100 transition-all rounded-t-[32px]">
+const Modal = ({ record, onClose, onEdit }) => {
+  const imageUrl = useMemo(() => getViewableImageUrl(record.media_file_url), [record.media_file_url]);
 
-      {/* Modal Profile Header - Responsive */}
-      <div className="px-6 py-8 md:px-10 md:py-10 bg-slate-900 text-white flex flex-col md:flex-row items-center justify-between shrink-0 relative overflow-hidden text-center md:text-left">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] -mr-32 -mt-32" />
-        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8 relative z-10">
-          <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-2xl md:rounded-3xl flex items-center justify-center text-white font-black text-2xl md:text-3xl shadow-2xl ring-4 ring-white/10 flex-shrink-0">
-            {record.patient_name?.[0]}
-          </div>
-          <div className="space-y-1 md:space-y-2">
-            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter leading-none">{record.patient_name}</h3>
-            <div className="flex items-center justify-center md:justify-start gap-2">
-              <span className={`px-3 py-0.5 md:px-4 md:py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-500 text-white' : 'bg-blue-500 text-white'
-                }`}>{record.service_type || 'OP'} SECTION</span>
-              <span className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest opacity-60 flex items-center gap-1"><Database size={10} /> {record.patient_id}</span>
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose} className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        className="bg-white w-full max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-2xl shadow-2xl relative z-10 overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="px-4 py-5 md:px-6 md:py-6 bg-slate-900 text-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg">
+              {record.patient_name?.[0]}
+            </div>
+            <div>
+              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-500' : 'bg-blue-500'
+                  }`}>{record.service_type || 'OP'}</span>
+                <span className="text-[9px] font-bold text-slate-400">{record.patient_id}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <button onClick={onClose} className="absolute md:relative top-6 right-6 md:top-auto md:right-auto p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/5 relative z-10">
-          <X size={24} className="text-slate-400" />
-        </button>
-      </div>
-
-      {/* Modal Content - Adaptive Spacing */}
-      <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 md:space-y-12 no-scrollbar">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          <InfoItem label="Contact Access" value={record.mobile_number} icon={<Phone size={14} />} />
-          <InfoItem label="Demographics" value={`${record.age}y / ${record.gender}`} icon={<User size={14} />} />
-          <InfoItem label="First Visit" value={new Date(record.entry_date_time).toLocaleDateString()} icon={<Calendar size={14} />} />
-          <InfoItem label="Registry Sync" value="Verified" icon={<CheckCircle2 size={14} />} />
+          <button onClick={onClose} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
+            <X size={20} className="text-white" />
+          </button>
         </div>
 
-        <div className="space-y-8 md:space-y-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-            <DataBlock label="Clinical Diagnosis" value={record.diagnosis} />
-            <DataBlock label="Prescribed Treatment" value={record.treatment} />
-            <DataBlock label="Clinical Remarks" value={record.remarks} />
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+          {/* Quick Info Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+            <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender}`} icon={<User size={12} />} />
+            <InfoItem label="Contact" value={record.mobile_number} icon={<Phone size={12} />} />
+            <InfoItem label="Occupation" value={record.occupation || '-'} icon={<Briefcase size={12} />} />
+            <InfoItem label="Date" value={new Date(record.entry_date_time).toLocaleDateString()} icon={<Calendar size={12} />} />
           </div>
 
-          <div className="space-y-4 md:space-y-6">
-            <label className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2 px-1">
-              <Camera size={14} /> Diagnostic Clinical Multimedia
-            </label>
-            {record.media_file_url ? (
-              <div className="rounded-3xl overflow-hidden border border-slate-100 aspect-video shadow-2xl relative bg-slate-50 group">
-                {record.media_file_url.includes('google') ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-8 md:p-12 text-center bg-slate-900 transition-all">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-600/10 rounded-full flex items-center justify-center mb-4 md:mb-6">
-                      <FileText className="text-blue-500" size={32} md:size={40} />
-                    </div>
-                    <p className="text-lg md:text-xl font-black text-white mb-2 uppercase tracking-tight">Multimedia Document Attached</p>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-6 md:mb-8">Cloud Storage Access Protocol Enabled</p>
-                    <a href={record.media_file_url} target="_blank" className="bg-blue-600 text-white px-8 py-4 md:px-10 md:py-5 rounded-2xl md:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center gap-4 active:scale-95">
-                      View Capture <ArrowRight size={16} />
-                    </a>
-                  </div>
-                ) : (
-                  <img src={record.media_file_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                )}
-                <div className="absolute top-4 left-4 md:top-8 md:left-8 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-[8px] font-black text-white uppercase tracking-widest border border-white/10">Diagnostic Feed</div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 py-12 md:py-20 rounded-[32px] border-4 border-dashed border-slate-100 text-slate-300 flex flex-col items-center justify-center gap-4">
-                <Camera size={40} strokeWidth={1} />
-                <span className="font-black text-[10px] uppercase tracking-widest">No multimedia attached</span>
-              </div>
-            )}
+          {/* Address */}
+          {record.address && (
+            <DataBlock label="Address" value={record.address} icon={<MapPin size={12} />} />
+          )}
+
+          {/* Clinical Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <DataBlock label="Chief Complaint" value={record.chief_complaint} icon={<FileWarning size={12} />} />
+            <DataBlock label="Medical History" value={record.medical_history} icon={<HeartPulse size={12} />} />
           </div>
+
+          {/* Treatment Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <DataBlock label="Diagnosis" value={record.diagnosis} />
+            <DataBlock label="Treatment" value={record.treatment} />
+            <DataBlock label="Remarks" value={record.remarks} />
+          </div>
+
+          {/* Media Display - Fixed Image Rendering */}
+          {record.media_file_url && (
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                <Camera size={12} /> Diagnostic Media
+              </p>
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 relative">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt="Diagnostic"
+                    className="w-full h-auto max-h-[300px] object-contain bg-black"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className="w-full py-10 flex-col items-center justify-center text-center hidden">
+                  <FileText className="text-slate-400 mb-2" size={32} />
+                  <p className="text-xs font-bold text-slate-500 mb-3">Media Attached</p>
+                  <a
+                    href={record.media_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-all"
+                  >
+                    Open in Drive
+                  </a>
+                </div>
+                {/* Fallback link always visible */}
+                <div className="absolute bottom-2 right-2">
+                  <a
+                    href={record.media_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-bold uppercase hover:bg-black/80 transition-all"
+                  >
+                    Open Full
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Modal Action Bar - Mobile Fixed Bottom */}
-      <div className="p-4 md:p-10 bg-slate-50 border-t border-slate-100 flex gap-3 md:gap-5 shrink-0 mt-auto md:mt-0">
-        <button onClick={onEdit} className="flex-[3] py-4 md:py-6 bg-slate-900 text-white rounded-2xl md:rounded-[32px] font-black text-[10px] md:text-[12px] uppercase tracking-widest md:tracking-[0.4em] shadow-2xl shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center justify-center gap-3 md:gap-4 active:scale-95">
-          <Edit3 size={16} /> Modify Record
-        </button>
-        <button onClick={() => window.print()} className="flex-1 py-4 md:py-6 bg-white border-2 border-slate-200 text-slate-900 rounded-2xl md:rounded-[32px] font-black flex items-center justify-center hover:bg-slate-50 transition-all active:scale-95">
-          <Printer size={18} />
-        </button>
-      </div>
-    </motion.div>
-  </div>
-);
-
-const DataBlock = ({ label, value }) => (
-  <div className="space-y-2 md:space-y-3">
-    <p className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none italic ml-3 md:ml-4">{label}</p>
-    <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[32px] text-slate-700 text-xs md:text-sm font-bold leading-relaxed border border-slate-100 shadow-sm min-h-[100px] md:min-h-[140px] flex items-center">
-      {value || 'No entry documented.'}
+        {/* Actions */}
+        <div className="p-4 md:p-5 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
+          <button onClick={onEdit} className="flex-[2] py-3.5 bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+            <Edit3 size={14} /> Edit Record
+          </button>
+          <button onClick={() => window.print()} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold flex items-center justify-center hover:bg-slate-50 transition-all active:scale-[0.98]">
+            <Printer size={16} />
+          </button>
+        </div>
+      </motion.div>
     </div>
+  );
+};
+
+const DataBlock = ({ label, value, icon }) => (
+  <div className="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
+    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
+      {icon} {label}
+    </p>
+    <p className="text-xs md:text-sm font-medium text-slate-700 leading-relaxed">
+      {value || <span className="text-slate-400 italic">Not documented</span>}
+    </p>
   </div>
 );
 
 const InfoItem = ({ label, value, icon }) => (
-  <div className="space-y-3 p-4 md:p-6 bg-slate-50 rounded-2xl md:rounded-[28px] border border-slate-100 shadow-inner flex flex-col items-center md:items-start text-center md:text-left">
-    <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-50 flex-shrink-0">
-      {React.cloneElement(icon, { size: 14 })}
+  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
+    <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-blue-600 shadow-sm mx-auto mb-1.5">
+      {icon}
     </div>
-    <div className="min-w-0 w-full">
-      <p className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest italic mb-0.5 md:mb-1 leading-none">{label}</p>
-      <p className="text-xs md:text-sm font-black text-slate-900 tracking-tight leading-none truncate">{value}</p>
-    </div>
+    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+    <p className="text-[11px] font-bold text-slate-900 truncate">{value || '-'}</p>
   </div>
 );
 

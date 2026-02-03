@@ -1,6 +1,6 @@
 /**
- * GURU ORTHO CLINIC - PRODUCTION REST API v4.5
- * Features: OP/IP Sectors, Auto-Setup, Record Update (No Duplicates)
+ * GURU ORTHO CLINIC - PRODUCTION REST API v6.0
+ * Features: Extended Patient Data, OP/IP Sectors, Performance Optimized
  */
 
 const CONFIG = {
@@ -22,8 +22,10 @@ function initializeSystem() {
     }
     
     const headers = [
-      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 'Service Type (OP/IP)', 'Mobile Number', 
-      'Diagnosis', 'Treatment', 'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+      'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 
+      'Service Type (OP/IP)', 'Mobile Number', 'Address', 'Occupation',
+      'Chief Complaint', 'Medical History', 'Diagnosis', 'Treatment', 
+      'Remarks', 'Media Type', 'Media File URL', 'Entered By'
     ];
     
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -34,7 +36,7 @@ function initializeSystem() {
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    return "Setup Complete! OP/IP Sector Support Enabled.";
+    return "Setup Complete! Extended Patient Fields Enabled.";
   } catch (e) {
     return "Error: " + e.toString();
   }
@@ -103,11 +105,15 @@ function doPost(e) {
       data.name,
       data.age,
       data.gender,
-      data.service_type || 'OP', // Default to OP
+      data.service_type || 'OP',
       data.mobile,
-      data.diagnosis,
-      data.treatment,
-      data.remarks,
+      data.address || '',
+      data.occupation || '',
+      data.chief_complaint || '',
+      data.medical_history || '',
+      data.diagnosis || '',
+      data.treatment || '',
+      data.remarks || '',
       data.media ? data.media.type : (mediaUrl ? 'File' : 'None'),
       mediaUrl,
       data.enteredBy || 'Vercel App'
