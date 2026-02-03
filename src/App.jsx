@@ -77,19 +77,21 @@ const isToday = (dateValue) => {
     date.getFullYear() === today.getFullYear();
 };
 
-// Helper: Convert Google Drive URL to viewable image URL
+// Helper: Convert Google Drive URL to viewable image thumbnail
 const getViewableImageUrl = (url) => {
   if (!url) return null;
-  if (url.includes('drive.google.com')) {
-    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch) {
-      return `https://drive.google.com/thumbnail?id=${fileIdMatch[1]}&sz=w1000`;
-    }
-    const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
-    if (idMatch) {
-      return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1000`;
-    }
-  }
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+  const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
+  if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+  return url;
+};
+
+// Helper: Convert Google Drive URL to direct streamable link for <video>
+const getStreamableFileUrl = (url) => {
+  if (!url) return null;
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+  const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
+  if (id) return `https://docs.google.com/uc?id=${id}&export=download`;
   return url;
 };
 
@@ -587,10 +589,16 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                   media.type.startsWith('image') ? <img src={media.base64} className="w-full h-full object-contain bg-black" /> : <video src={media.base64} className="w-full h-full object-contain" controls />
                 ) : (
                   <div className="w-full h-full relative">
-                    {editData.media_type === 'image/jpeg' || editData.media_type === 'image/png' || editData.media_file_url.match(/\.(jpg|jpeg|png|gif)$/i) || !editData.media_file_url.includes('video') ? (
-                       <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
+                    {editData.media_type?.includes('video') || editData.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                       <video 
+                        src={getStreamableFileUrl(editData.media_file_url)} 
+                        className="w-full h-full object-contain bg-black" 
+                        controls 
+                        poster={getViewableImageUrl(editData.media_file_url)}
+                        preload="metadata"
+                       />
                     ) : (
-                       <video src={editData.media_file_url} className="w-full h-full object-contain" controls />
+                       <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
                     )}
                     <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Existing Media</div>
                   </div>
@@ -732,45 +740,57 @@ const Modal = ({ record, onClose, onEdit }) => {
             <DataBlock label="Remarks" value={record.remarks} />
           </div>
 
-          {/* Media Display */}
+          {/* Media Display - Direct Playback Support */}
           {record.media_file_url && (
             <div className="space-y-2">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Camera size={12} /> Diagnostic Media
               </p>
-              <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt="Diagnostic"
-                    className="w-full h-auto max-h-[300px] object-contain"
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative shadow-inner">
+                {record.media_type?.includes('video') || record.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                  <div className="w-full h-full">
+                    <video 
+                      src={getStreamableFileUrl(record.media_file_url)} 
+                      className="w-full h-auto max-h-[400px] object-contain w-full"
+                      controls
+                      playsInline
+                      preload="metadata"
+                      poster={getViewableImageUrl(record.media_file_url)}
+                    />
+                  </div>
+                ) : (
+                  <img 
+                    src={getViewableImageUrl(record.media_file_url)} 
+                    alt="Diagnostic" 
+                    className="w-full h-auto max-h-[400px] object-contain bg-black"
                     loading="lazy"
                     onError={(e) => {
                       e.target.style.display = 'none';
                       if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
                     }}
                   />
-                ) : null}
-                <div className="w-full py-10 flex-col items-center justify-center text-center hidden bg-slate-900">
+                )}
+                <div className="w-full py-10 flex-col items-center justify-center text-center hidden bg-slate-900 text-white">
                   <FileText className="text-slate-400 mb-2" size={32} />
-                  <p className="text-xs font-bold text-slate-500 mb-3">Media Attached</p>
-                  <a
-                    href={record.media_file_url}
-                    target="_blank"
+                  <p className="text-xs font-bold mb-3">Media Format Unsupported for Direct Playback</p>
+                  <a 
+                    href={record.media_file_url} 
+                    target="_blank" 
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-all"
                   >
                     Open in Drive
                   </a>
                 </div>
-                <div className="absolute bottom-2 right-2">
-                  <a
-                    href={record.media_file_url}
-                    target="_blank"
+                {/* External link fallback */}
+                <div className="absolute bottom-2 right-2 flex gap-2">
+                  <a 
+                    href={record.media_file_url} 
+                    target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-bold uppercase hover:bg-black/80 transition-all"
+                    className="px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-black uppercase hover:bg-black/80 transition-all flex items-center gap-1 shadow-lg"
                   >
-                    Open Full
+                    <Plus size={8} /> Full View
                   </a>
                 </div>
               </div>
