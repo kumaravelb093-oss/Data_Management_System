@@ -95,6 +95,15 @@ const getStreamableFileUrl = (url) => {
   return url;
 };
 
+// Helper: Convert Google Drive URL to embedded preview viewer (more reliable for playback)
+const getEmbedViewerUrl = (url) => {
+  if (!url) return null;
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+  const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
+  if (id) return `https://drive.google.com/file/d/${id}/preview`;
+  return url;
+};
+
 // Helper: Get record date field (handles different field names)
 const getRecordDate = (record) => {
   return record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp;
@@ -590,15 +599,16 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                 ) : (
                   <div className="w-full h-full relative">
                     {editData.media_type?.includes('video') || editData.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
-                       <video 
-                        src={getStreamableFileUrl(editData.media_file_url)} 
-                        className="w-full h-full object-contain bg-black" 
-                        controls 
-                        poster={getViewableImageUrl(editData.media_file_url)}
-                        preload="metadata"
-                       />
+                      <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-slate-700">
+                        <iframe
+                          src={getEmbedViewerUrl(editData.media_file_url)}
+                          className="w-full h-full border-0"
+                          allow="autoplay"
+                          title="Existing Video Preview"
+                        />
+                      </div>
                     ) : (
-                       <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
+                      <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
                     )}
                     <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Existing Media</div>
                   </div>
@@ -746,23 +756,21 @@ const Modal = ({ record, onClose, onEdit }) => {
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Camera size={12} /> Diagnostic Media
               </p>
-              <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative shadow-inner">
+              <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative shadow-inner aspect-video">
                 {record.media_type?.includes('video') || record.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
                   <div className="w-full h-full">
-                    <video 
-                      src={getStreamableFileUrl(record.media_file_url)} 
-                      className="w-full h-auto max-h-[400px] object-contain w-full"
-                      controls
-                      playsInline
-                      preload="metadata"
-                      poster={getViewableImageUrl(record.media_file_url)}
+                    <iframe
+                      src={getEmbedViewerUrl(record.media_file_url)}
+                      className="w-full h-full border-0 absolute inset-0"
+                      allow="autoplay"
+                      title="Diagnostic Video"
                     />
                   </div>
                 ) : (
-                  <img 
-                    src={getViewableImageUrl(record.media_file_url)} 
-                    alt="Diagnostic" 
-                    className="w-full h-auto max-h-[400px] object-contain bg-black"
+                  <img
+                    src={getViewableImageUrl(record.media_file_url)}
+                    alt="Diagnostic"
+                    className="w-full h-auto max-h-[400px] object-contain w-full"
                     loading="lazy"
                     onError={(e) => {
                       e.target.style.display = 'none';
@@ -773,9 +781,9 @@ const Modal = ({ record, onClose, onEdit }) => {
                 <div className="w-full py-10 flex-col items-center justify-center text-center hidden bg-slate-900 text-white">
                   <FileText className="text-slate-400 mb-2" size={32} />
                   <p className="text-xs font-bold mb-3">Media Format Unsupported for Direct Playback</p>
-                  <a 
-                    href={record.media_file_url} 
-                    target="_blank" 
+                  <a
+                    href={record.media_file_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-all"
                   >
@@ -784,9 +792,9 @@ const Modal = ({ record, onClose, onEdit }) => {
                 </div>
                 {/* External link fallback */}
                 <div className="absolute bottom-2 right-2 flex gap-2">
-                  <a 
-                    href={record.media_file_url} 
-                    target="_blank" 
+                  <a
+                    href={record.media_file_url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-black uppercase hover:bg-black/80 transition-all flex items-center gap-1 shadow-lg"
                   >
