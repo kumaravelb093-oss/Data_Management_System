@@ -25,7 +25,7 @@ function initializeSystem() {
       'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 
       'Service Type (OP/IP)', 'Mobile Number', 'Address', 'Occupation',
       'Chief Complaint', 'Medical History', 'Diagnosis', 'Treatment', 
-      'Remarks', 'Media Type', 'Media File URL', 'Entered By'
+      'Remarks', 'Media URL 1', 'Media URL 2', 'Media URL 3', 'Media URL 4', 'Entered By'
     ];
     
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -36,7 +36,7 @@ function initializeSystem() {
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    return "Setup Complete! Extended Patient Fields Enabled.";
+    return "Setup Complete! 4 Media Slots Enabled.";
   } catch (e) {
     return "Error: " + e.toString();
   }
@@ -90,9 +90,20 @@ function doPost(e) {
       sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     }
 
-    let mediaUrl = data.existingMediaUrl || '';
-    if (data.media && data.media.base64 && data.media.base64.startsWith('data:')) {
-      mediaUrl = uploadFile(data.media.base64, data.media.name, data.media.type);
+    // Handle 4 Media Slots
+    const mediaUrls = [
+      data.media_url_1 || '',
+      data.media_url_2 || '',
+      data.media_url_3 || '',
+      data.media_url_4 || ''
+    ];
+
+    // Upload new media if provided
+    for(let i = 0; i < 4; i++) {
+      const mediaKey = `media${i+1}`;
+      if (data[mediaKey] && data[mediaKey].base64 && data[mediaKey].base64.startsWith('data:')) {
+        mediaUrls[i] = uploadFile(data[mediaKey].base64, data[mediaKey].name, data[mediaKey].type);
+      }
     }
 
     const timestamp = new Date();
@@ -114,8 +125,10 @@ function doPost(e) {
       data.diagnosis || '',
       data.treatment || '',
       data.remarks || '',
-      data.media ? data.media.type : (mediaUrl ? 'File' : 'None'),
-      mediaUrl,
+      mediaUrls[0],
+      mediaUrls[1],
+      mediaUrls[2],
+      mediaUrls[3],
       data.enteredBy || 'Vercel App'
     ];
 

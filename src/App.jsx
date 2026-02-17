@@ -448,7 +448,13 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     chief_complaint: '', medical_history: '',
     diagnosis: '', treatment: '', remarks: ''
   });
-  const [media, setMedia] = useState(null);
+  const [mediaSlots, setMediaSlots] = useState([
+    { base64: null, type: null, name: null, url: null },
+    { base64: null, type: null, name: null, url: null },
+    { base64: null, type: null, name: null, url: null },
+    { base64: null, type: null, name: null, url: null }
+  ]);
+  const [activeSlot, setActiveSlot] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [mode, setMode] = useState('camera');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -472,15 +478,21 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         treatment: recordValue(editData.treatment),
         remarks: recordValue(editData.remarks)
       });
+      setMediaSlots([
+        { base64: null, type: null, name: null, url: editData.media_url_1 || null },
+        { base64: null, type: null, name: null, url: editData.media_url_2 || null },
+        { base64: null, type: null, name: null, url: editData.media_url_3 || null },
+        { base64: null, type: null, name: null, url: editData.media_url_4 || null }
+      ]);
     }
   }, [editData]);
 
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    if (!media) startStream();
+    if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) startStream();
     return () => stopStream();
-  }, [mode, media]);
+  }, [mode, activeSlot, mediaSlots]);
 
   const startStream = async () => {
     try {
@@ -505,7 +517,10 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
-    setMedia({ base64: canvas.toDataURL('image/jpeg'), type: 'image/jpeg', name: `pic_${Date.now()}.jpg` });
+    const newMedia = { base64: canvas.toDataURL('image/jpeg'), type: 'image/jpeg', name: `pic_${Date.now()}.jpg`, url: null };
+    const updated = [...mediaSlots];
+    updated[activeSlot] = newMedia;
+    setMediaSlots(updated);
   };
 
   const startRecording = () => {
@@ -517,7 +532,12 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     mr.onstop = () => {
       const reader = new FileReader();
       reader.readAsDataURL(new Blob(chunks, { type: 'video/webm' }));
-      reader.onloadend = () => setMedia({ base64: reader.result, type: 'video/webm', name: `vid_${Date.now()}.webm` });
+      reader.onloadend = () => {
+        const newMedia = { base64: reader.result, type: 'video/webm', name: `vid_${Date.now()}.webm`, url: null };
+        const updated = [...mediaSlots];
+        updated[activeSlot] = newMedia;
+        setMediaSlots(updated);
+      };
     };
     mr.start();
   };
@@ -531,11 +551,19 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     try {
       const payload = {
         ...formData,
-        media,
         patient_id: editData?.patient_id || null,
         entry_date_time: editData ? getRecordDate(editData) : null,
-        existingMediaUrl: editData?.media_file_url || '',
-        enteredBy: 'Practitioner'
+        enteredBy: 'Practitioner',
+        // Send existing URLs
+        media_url_1: mediaSlots[0].url,
+        media_url_2: mediaSlots[1].url,
+        media_url_3: mediaSlots[2].url,
+        media_url_4: mediaSlots[3].url,
+        // Send new base64 uploads
+        media1: mediaSlots[0].base64 ? mediaSlots[0] : null,
+        media2: mediaSlots[1].base64 ? mediaSlots[1] : null,
+        media3: mediaSlots[2].base64 ? mediaSlots[2] : null,
+        media4: mediaSlots[3].base64 ? mediaSlots[3] : null,
       };
       const res = await submitToGas(payload);
       if (res.success) onSuccess(res.message);
@@ -586,34 +614,66 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
           <AreaField label="Medical History" rows={2} value={formData.medical_history} onChange={v => updateField('medical_history', v)} placeholder="Past medical history, surgeries, allergies..." />
         </section>
 
-        {/* Multimedia Section */}
+        {/* Multimedia Section - 4 Slots */}
         <section className="glass-card p-4 md:p-6 space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
-            <Camera size={12} /> Diagnostic Media
-          </h4>
-          <div className="aspect-video max-h-[200px] md:max-h-[280px] bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden relative">
-            {media || (editData?.media_file_url && !media) ? (
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <Camera size={12} /> Diagnostic Media ({mediaSlots.filter(s => s.base64 || s.url).length}/4)
+            </h4>
+            <div className="flex gap-1">
+              {[0, 1, 2, 3].map(i => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveSlot(i)}
+                  className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${activeSlot === i ? 'bg-dark-orange text-white shadow-md' :
+                      (mediaSlots[i].base64 || mediaSlots[i].url) ? 'bg-orange-100 text-dark-orange border border-orange-200' : 'bg-slate-100 text-slate-400'
+                    }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="aspect-video max-h-[200px] md:max-h-[280px] bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden relative group">
+            {(mediaSlots[activeSlot].base64 || mediaSlots[activeSlot].url) ? (
               <div className="w-full h-full relative">
-                {media ? (
-                  media.type.startsWith('image') ? <img src={media.base64} className="w-full h-full object-contain bg-black" /> : <video src={media.base64} className="w-full h-full object-contain" controls />
+                {mediaSlots[activeSlot].base64 ? (
+                  mediaSlots[activeSlot].type.startsWith('image') ? (
+                    <img src={mediaSlots[activeSlot].base64} className="w-full h-full object-contain bg-black" />
+                  ) : (
+                    <video src={mediaSlots[activeSlot].base64} className="w-full h-full object-contain" controls />
+                  )
                 ) : (
                   <div className="w-full h-full relative">
-                    {editData.media_type?.includes('video') || editData.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                    {mediaSlots[activeSlot].url.includes('video') || mediaSlots[activeSlot].url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
                       <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-slate-700">
                         <iframe
-                          src={getEmbedViewerUrl(editData.media_file_url)}
+                          src={getEmbedViewerUrl(mediaSlots[activeSlot].url)}
                           className="w-full h-full border-0"
                           allow="autoplay"
-                          title="Existing Video Preview"
+                          title={`Slot ${activeSlot + 1} Preview`}
                         />
                       </div>
                     ) : (
-                      <img src={getViewableImageUrl(editData.media_file_url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
+                      <img src={getViewableImageUrl(mediaSlots[activeSlot].url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
                     )}
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Existing Media</div>
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Saved Slot {activeSlot + 1}</div>
                   </div>
                 )}
-                <button type="button" onClick={() => { setMedia(null); startStream(); }} className="absolute top-3 right-3 p-2 bg-white shadow-lg text-rose-500 rounded-lg"> <RotateCcw size={16} /> </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = [...mediaSlots];
+                    updated[activeSlot] = { base64: null, type: null, name: null, url: null };
+                    setMediaSlots(updated);
+                    startStream();
+                  }}
+                  className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white transition-all"
+                >
+                  <RotateCcw size={16} />
+                </button>
               </div>
             ) : (
               <>
@@ -691,7 +751,14 @@ const AreaField = ({ label, rows = 3, value, onChange, placeholder }) => (
 );
 
 const Modal = ({ record, onClose, onEdit }) => {
-  const imageUrl = useMemo(() => getViewableImageUrl(record.media_file_url), [record.media_file_url]);
+  const mediaUrls = useMemo(() => [
+    record.media_url_1,
+    record.media_url_2,
+    record.media_url_3,
+    record.media_url_4
+  ].filter(url => url && url !== 'None'), [record]);
+
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const recordDate = getRecordDate(record);
 
   return (
@@ -703,15 +770,15 @@ const Modal = ({ record, onClose, onEdit }) => {
         className="bg-white w-full max-w-2xl h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-2xl shadow-2xl relative z-10 overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="px-4 py-5 md:px-6 md:py-6 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        <div className="px-4 py-5 md:px-6 md:py-6 bg-navy text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-800 to-navy rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg border border-white/10">
               {record.patient_name?.[0]}
             </div>
             <div>
               <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-500' : 'bg-blue-500'
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
                   }`}>{record.service_type || 'OP'}</span>
                 <span className="text-[9px] font-bold text-slate-400">{record.patient_id}</span>
               </div>
@@ -750,58 +817,62 @@ const Modal = ({ record, onClose, onEdit }) => {
             <DataBlock label="Remarks" value={record.remarks} />
           </div>
 
-          {/* Media Display - Direct Playback Support */}
-          {record.media_file_url && (
-            <div className="space-y-2">
+          {/* Media Display - Multi-Gallery Support */}
+          {mediaUrls.length > 0 && (
+            <div className="space-y-3">
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                <Camera size={12} /> Diagnostic Media
+                <Camera size={12} /> Diagnostic Media ({mediaUrls.length}/4)
               </p>
+              
               <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative shadow-inner aspect-video">
-                {record.media_type?.includes('video') || record.media_file_url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
-                  <div className="w-full h-full">
-                    <iframe
-                      src={getEmbedViewerUrl(record.media_file_url)}
-                      className="w-full h-full border-0 absolute inset-0"
-                      allow="autoplay"
-                      title="Diagnostic Video"
-                    />
-                  </div>
+                {mediaUrls[activeMediaIndex].includes('video') || mediaUrls[activeMediaIndex].match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                  <iframe 
+                    src={getEmbedViewerUrl(mediaUrls[activeMediaIndex])} 
+                    className="w-full h-full border-0 absolute inset-0" 
+                    allow="autoplay"
+                    title={`Media ${activeMediaIndex + 1}`}
+                  />
                 ) : (
-                  <img
-                    src={getViewableImageUrl(record.media_file_url)}
-                    alt="Diagnostic"
-                    className="w-full h-auto max-h-[400px] object-contain w-full"
-                    loading="lazy"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                    }}
+                  <img 
+                    src={getViewableImageUrl(mediaUrls[activeMediaIndex])} 
+                    alt="Diagnostic" 
+                    className="w-full h-full object-contain bg-black"
                   />
                 )}
-                <div className="w-full py-10 flex-col items-center justify-center text-center hidden bg-slate-900 text-white">
-                  <FileText className="text-slate-400 mb-2" size={32} />
-                  <p className="text-xs font-bold mb-3">Media Format Unsupported for Direct Playback</p>
-                  <a
-                    href={record.media_file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-all"
-                  >
-                    Open in Drive
-                  </a>
-                </div>
-                {/* External link fallback */}
-                <div className="absolute bottom-2 right-2 flex gap-2">
-                  <a
-                    href={record.media_file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-black uppercase hover:bg-black/80 transition-all flex items-center gap-1 shadow-lg"
-                  >
-                    <Plus size={8} /> Full View
-                  </a>
-                </div>
+                
+                <a 
+                  href={mediaUrls[activeMediaIndex]} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-black uppercase hover:bg-black/80 transition-all flex items-center gap-1 shadow-lg"
+                >
+                  <Plus size={8} /> Full View
+                </a>
               </div>
+
+              {/* Thumbnails Gallery */}
+              {mediaUrls.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {mediaUrls.map((url, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveMediaIndex(idx)}
+                      className={`w-20 h-14 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${
+                        activeMediaIndex === idx ? 'border-dark-orange scale-105 shadow-md' : 'border-slate-100 opacity-60'
+                      }`}
+                    >
+                      {url.includes('video') || url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center relative">
+                          <Play size={16} className="text-white fill-white/20" />
+                          <div className="absolute bottom-1 right-1 px-1 bg-black/60 rounded text-[6px] font-black text-white uppercase">Video</div>
+                        </div>
+                      ) : (
+                        <img src={getViewableImageUrl(url)} className="w-full h-full object-cover" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
