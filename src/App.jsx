@@ -158,15 +158,15 @@ const App = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 overflow-x-hidden">
       {/* Responsive Professional Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-navy border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
+            <div className="w-9 h-9 md:w-10 md:h-10 bg-dark-orange rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
               <Stethoscope className="text-white" size={20} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-black tracking-tight text-slate-900 leading-none">Guru Ortho</h1>
-              <span className="text-[8px] md:text-[10px] font-bold text-blue-600 uppercase tracking-widest opacity-80 hidden sm:block">Management System</span>
+              <h1 className="text-base md:text-xl font-black tracking-tight text-white leading-none">Guru Ortho</h1>
+              <span className="text-[8px] md:text-[10px] font-bold text-orange-400 uppercase tracking-widest opacity-80 hidden sm:block">Management System</span>
             </div>
           </div>
 
@@ -174,16 +174,16 @@ const App = () => {
             {view !== 'home' && (
               <button
                 onClick={() => setView('home')}
-                className="clinical-btn-secondary p-2"
+                className="clinical-btn-secondary p-2 bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
               >
                 <Home size={18} />
               </button>
             )}
             <button
               onClick={handleAdd}
-              className="clinical-btn-primary p-2 md:px-4 md:py-2 text-[10px] md:text-sm whitespace-nowrap"
+              className="clinical-btn-primary p-2 md:px-4 md:py-2 text-[10px] md:text-sm whitespace-nowrap bg-dark-orange hover:bg-orange-700 border-0"
             >
-              <Plus size={18} /> <span className="hidden sm:inline">New</span>
+              <Plus size={18} /> <span className="hidden sm:inline">New Admission</span>
             </button>
           </div>
         </div>
@@ -280,9 +280,9 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-        <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-amber-700" />
-        <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-blue-700" />
-        <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-indigo-700" />
+        <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-orange-600" />
+        <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-navy" />
+        <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-orange-700" />
         <StatItem label="Total" value={stats.total} icon={<Users size={16} />} color="text-slate-800" />
       </div>
 
@@ -293,12 +293,12 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-2 text-[11px] md:text-sm font-black tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-700' : 'text-slate-500'
+              className={`pb-2 text-[11px] md:text-sm font-black tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-dark-orange' : 'text-slate-500'
                 }`}
             >
               {tab}
               {activeTab === tab && (
-                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-dark-orange" />
               )}
             </button>
           ))}
@@ -308,13 +308,13 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Search..."
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-medium text-sm"
+              placeholder="Search patients..."
+              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange transition-all font-medium text-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-blue-600 transition-all bg-white border border-slate-200 rounded-xl">
+          <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-dark-orange transition-all bg-white border border-slate-200 rounded-xl shadow-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -328,7 +328,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <div key={i} className="p-4 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                     }`}>
                     {record.service_type || 'OP'}
                   </span>
@@ -344,7 +344,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
               <div className="flex flex-col gap-1.5 flex-shrink-0">
                 <button
                   onClick={() => onViewRecord(record)}
-                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all"
+                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-orange-100 hover:text-dark-orange transition-all"
                 >
                   <Eye size={14} />
                 </button>
@@ -386,7 +386,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                   <td className="font-bold text-slate-900">{record.patient_name}</td>
                   <td>{record.age}y/{record.gender?.[0]}</td>
                   <td>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                       }`}>
                       {record.service_type || 'OP'}
                     </span>
@@ -397,7 +397,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); onViewRecord(record); }}
-                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all"
+                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 hover:text-navy transition-all"
                         title="View Details"
                       >
                         <Eye size={14} />
@@ -624,9 +624,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                     <button type="button" onClick={() => setMode('video')} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${mode === 'video' ? 'bg-white text-slate-900' : 'text-white'}`}>Video</button>
                   </div>
                   {mode === 'camera' ? (
-                    <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all"> <Camera size={20} className="text-blue-600" /> </button>
+                    <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all"> <Camera size={20} className="text-dark-orange" /> </button>
                   ) : (
-                    <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}> {isRecording ? <Square size={18} className="text-white" /> : <Play size={18} className="text-blue-600 ml-0.5" />} </button>
+                    <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}> {isRecording ? <Square size={18} className="text-white" /> : <Play size={18} className="text-dark-orange ml-0.5" />} </button>
                   )}
                 </div>
               </>
@@ -648,7 +648,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
 
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onCancel} className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">Cancel</button>
-          <button type="submit" disabled={isSubmitting} className="flex-[2] py-3.5 bg-blue-600 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+          <button type="submit" disabled={isSubmitting} className="flex-[2] py-3.5 bg-dark-orange text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-orange-500/20 hover:bg-orange-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
             {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : (editData ? 'Update Record' : 'Save Record')}
           </button>
         </div>
@@ -662,7 +662,7 @@ const TextField = ({ label, type = 'text', required, value, onChange }) => (
     <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <input
       type={type} required={required} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-black text-slate-800 text-sm"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange focus:bg-white transition-all font-black text-slate-800 text-sm"
     />
   </div>
 );
@@ -672,7 +672,7 @@ const SelectBox = ({ label, value, options, onChange }) => (
     <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <select
       value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-black text-slate-800 text-sm appearance-none cursor-pointer"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange focus:bg-white transition-all font-black text-slate-800 text-sm appearance-none cursor-pointer"
     >
       {options.map(o => <option key={o}>{o}</option>)}
     </select>
@@ -684,7 +684,7 @@ const AreaField = ({ label, rows = 3, value, onChange, placeholder }) => (
     <label className="block text-[9px] font-black text-slate-600 uppercase tracking-widest ml-1">{label}</label>
     <textarea
       rows={rows} value={value} onChange={e => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all font-bold text-slate-800 text-sm resize-none"
+      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange focus:bg-white transition-all font-bold text-slate-800 text-sm resize-none"
       placeholder={placeholder}
     />
   </div>
@@ -808,7 +808,7 @@ const Modal = ({ record, onClose, onEdit }) => {
 
         {/* Actions */}
         <div className="p-4 md:p-5 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-          <button onClick={onEdit} className="flex-[2] py-3.5 bg-slate-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+          <button onClick={onEdit} className="flex-[2] py-3.5 bg-navy text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-[0.98] border border-white/10">
             <Edit3 size={14} /> Edit Record
           </button>
           <button onClick={() => window.print()} className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold flex items-center justify-center hover:bg-slate-50 transition-all active:scale-[0.98]">
@@ -822,7 +822,7 @@ const Modal = ({ record, onClose, onEdit }) => {
 
 const DataBlock = ({ label, value, icon }) => (
   <div className="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
-    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
+    <p className="text-[8px] font-black uppercase tracking-widest text-slate-600 mb-1.5 flex items-center gap-1.5 font-display">
       {icon} {label}
     </p>
     <p className="text-xs md:text-sm font-medium text-slate-700 leading-relaxed">
@@ -833,7 +833,7 @@ const DataBlock = ({ label, value, icon }) => (
 
 const InfoItem = ({ label, value, icon }) => (
   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
-    <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-blue-600 shadow-sm mx-auto mb-1.5">
+    <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-dark-orange shadow-sm mx-auto mb-1.5">
       {icon}
     </div>
     <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
