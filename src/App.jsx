@@ -617,8 +617,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
       };
       const res = await submitToGas(payload);
       if (res.success) onSuccess(res.message);
-      else showNotification(res.error || 'Server rejected', 'error');
-    } catch (err) { showNotification('Sync Fail', 'error'); }
+      else onError(res.error || 'Server rejected');
+    } catch (err) { onError('Sync Fail'); }
     finally { setIsSubmitting(false); }
   };
 
@@ -782,15 +782,15 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
           </div>
         </section>
 
-        {/* Supporting Documents Section */}
+        {/* Document Upload Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
           <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
-            <Upload size={14} className="text-dark-orange" /> Supporting Clinical Documents (Optional)
+            <Upload size={12} /> Supporting Documents (Optional)
           </h4>
           <div className="relative group p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-dark-orange transition-all bg-slate-50/50 flex flex-col items-center justify-center gap-3">
             {documentFile.base64 || documentFile.url ? (
               <div className="flex flex-col items-center gap-3 w-full">
-                <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange ring-4 ring-orange-50">
+                <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange">
                   <File size={32} />
                 </div>
                 <div className="text-center">
@@ -798,9 +798,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                   <button
                     type="button"
                     onClick={() => setDocumentFile({ base64: null, type: null, name: null, url: null })}
-                    className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto"
+                    className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline"
                   >
-                    <X size={10} /> Remove Document
+                    Remove Document
                   </button>
                 </div>
               </div>
@@ -811,7 +811,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                 </div>
                 <div className="text-center">
                   <p className="text-[11px] font-black text-slate-600 uppercase tracking-tight">Upload PDF, Image or Video</p>
-                  <p className="text-[9px] font-bold text-slate-400 mt-1">Select from your device storage</p>
+                  <p className="text-[9px] font-bold text-slate-400 mt-1">Files in your phone memory</p>
                 </div>
                 <input
                   type="file"
@@ -926,13 +926,44 @@ const Modal = ({ record, onClose, onEdit }) => {
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
-            <X size={20} className="text-white" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3"
+              title="Print Clinical Report"
+            >
+              <Printer size={16} /> <span className="hidden md:inline">Print Report</span>
+            </button>
+            <button onClick={onClose} className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-all">
+              <X size={20} className="text-white" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 print:overflow-visible print:h-auto">
+          {/* Print Only Header */}
+          <div className="hidden print:block border-b-2 border-slate-900 pb-6 mb-8 text-center">
+            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">GURU ORTHOPEDIC CLINIC</h1>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Specialized Orthopedic Care & Data Management</p>
+            <div className="mt-4 flex justify-between items-end text-left border-t border-slate-100 pt-4">
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Patient Name</p>
+                <p className="text-lg font-black text-slate-900 uppercase">{record.patient_name}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Record Date</p>
+                <p className="text-sm font-black text-slate-900">{formatDate(recordDate)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Clinical Header Section */}
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2 print:hidden">
+            <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <ClipboardList size={12} /> Clinical Case Summary
+            </h4>
+          </div>
           {/* Quick Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
             <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender}`} icon={<User size={12} />} />
