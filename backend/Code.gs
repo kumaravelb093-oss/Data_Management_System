@@ -1,6 +1,6 @@
 /**
- * GURU ORTHO CLINIC - PRODUCTION REST API v6.0
- * Features: Extended Patient Data, OP/IP Sectors, Performance Optimized
+ * GURU ORTHO CLINIC - PRODUCTION REST API v7.0
+ * Features: 4 Vertical Media Slots, Extended Patient Data, Performance Optimized
  */
 
 const CONFIG = {
@@ -30,13 +30,13 @@ function initializeSystem() {
     
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, headers.length).setBackground('#111827').setFontColor('#FFFFFF').setFontWeight('bold');
+    sheet.getRange(1, 1, 1, headers.length).setBackground('#0a1e3b').setFontColor('#FFFFFF').setFontWeight('bold');
     
     const folders = DriveApp.getFoldersByName(CONFIG.UPLOAD_FOLDER_NAME);
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    return "Setup Complete! 4 Media Slots Enabled.";
+    return "Setup Complete! 4 Vertical Media Slots Enabled.";
   } catch (e) {
     return "Error: " + e.toString();
   }
@@ -60,9 +60,8 @@ function doGet(e) {
     let results = rows.map(row => {
       let obj = {};
       headers.forEach((header, i) => {
-        // Normalize header keys for JS
         const key = header.toLowerCase()
-          .replace(/\((.*?)\)/g, '') // remove (OP/IP)
+          .replace(/\((.*?)\)/g, '')
           .trim()
           .replace(/[^a-z0-9]/g, '_');
         obj[key] = row[i];
@@ -90,7 +89,7 @@ function doPost(e) {
       sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     }
 
-    // Handle 4 Media Slots
+    // Handle 4 Media Slots (Sequential)
     const mediaUrls = [
       data.media_url_1 || '',
       data.media_url_2 || '',
@@ -98,7 +97,7 @@ function doPost(e) {
       data.media_url_4 || ''
     ];
 
-    // Upload new media if provided
+    // Upload new media if provided (Slot mapping)
     for(let i = 0; i < 4; i++) {
       const mediaKey = `media${i+1}`;
       if (data[mediaKey] && data[mediaKey].base64 && data[mediaKey].base64.startsWith('data:')) {

@@ -5,7 +5,7 @@ import {
   ClipboardList, User, Home, Search, RefreshCw,
   Plus, Eye, RotateCcw, Play, Square, Edit3,
   ChevronRight, Activity, Database, Users, TrendingUp, Printer,
-  Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning
+  Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning, PlusCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,6 +32,9 @@ const submitToGas = async (payload) => {
     throw error;
   }
 };
+
+const PLUS_CIRCLE = <PlusCircle size={20} />;
+const ROTATE_CCW = <RotateCcw size={16} />;
 
 // Helper: Parse date from various formats (Google Sheets returns different formats)
 const parseRecordDate = (dateValue) => {
@@ -106,7 +109,7 @@ const getEmbedViewerUrl = (url) => {
 
 // Helper: Get record date field (handles different field names)
 const getRecordDate = (record) => {
-  return record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp;
+  return record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp || record.entry_date_and_time;
 };
 
 const App = () => {
@@ -614,83 +617,94 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
           <AreaField label="Medical History" rows={2} value={formData.medical_history} onChange={v => updateField('medical_history', v)} placeholder="Past medical history, surgeries, allergies..." />
         </section>
 
-        {/* Multimedia Section - 4 Slots */}
-        <section className="glass-card p-4 md:p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              <Camera size={12} /> Diagnostic Media ({mediaSlots.filter(s => s.base64 || s.url).length}/4)
-            </h4>
-            <div className="flex gap-1">
-              {[0, 1, 2, 3].map(i => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveSlot(i)}
-                  className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold transition-all ${activeSlot === i ? 'bg-dark-orange text-white shadow-md' :
-                      (mediaSlots[i].base64 || mediaSlots[i].url) ? 'bg-orange-100 text-dark-orange border border-orange-200' : 'bg-slate-100 text-slate-400'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Multimedia Section - Vertical Filling */}
+        <section className="space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">
+            <Camera size={12} /> Diagnostic Documentation (Up to 4)
+          </h4>
 
-          <div className="aspect-video max-h-[200px] md:max-h-[280px] bg-slate-900 rounded-xl md:rounded-2xl overflow-hidden relative group">
-            {(mediaSlots[activeSlot].base64 || mediaSlots[activeSlot].url) ? (
-              <div className="w-full h-full relative">
-                {mediaSlots[activeSlot].base64 ? (
-                  mediaSlots[activeSlot].type.startsWith('image') ? (
-                    <img src={mediaSlots[activeSlot].base64} className="w-full h-full object-contain bg-black" />
-                  ) : (
-                    <video src={mediaSlots[activeSlot].base64} className="w-full h-full object-contain" controls />
-                  )
-                ) : (
-                  <div className="w-full h-full relative">
-                    {mediaSlots[activeSlot].url.includes('video') || mediaSlots[activeSlot].url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
-                      <div className="w-full h-full bg-black rounded-lg overflow-hidden border border-slate-700">
-                        <iframe
-                          src={getEmbedViewerUrl(mediaSlots[activeSlot].url)}
-                          className="w-full h-full border-0"
-                          allow="autoplay"
-                          title={`Slot ${activeSlot + 1} Preview`}
-                        />
+          <div className="space-y-4">
+            {[0, 1, 2, 3].map((idx) => {
+              const isSlotActive = activeSlot === idx;
+              const slotMedia = mediaSlots[idx];
+              const hasMedia = !!(slotMedia.base64 || slotMedia.url);
+
+              return (
+                <div
+                  key={idx}
+                  className={`glass-card overflow-hidden transition-all border-2 ${isSlotActive ? 'border-dark-orange shadow-lg' : 'border-transparent'}`}
+                  onClick={() => !isSlotActive && setActiveSlot(idx)}
+                >
+                  <div className="p-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">Slot {idx + 1}</span>
+                    {hasMedia && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-[8px] font-black uppercase">Captured</span>
+                    )}
+                  </div>
+
+                  <div className="aspect-video bg-slate-900 relative">
+                    {hasMedia ? (
+                      <div className="w-full h-full relative">
+                        {slotMedia.base64 ? (
+                          slotMedia.type.startsWith('image') ? (
+                            <img src={slotMedia.base64} className="w-full h-full object-contain" />
+                          ) : (
+                            <video src={slotMedia.base64} className="w-full h-full object-contain" controls />
+                          )
+                        ) : (
+                          <div className="w-full h-full">
+                            {slotMedia.url.includes('video') || slotMedia.url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                              <iframe src={getEmbedViewerUrl(slotMedia.url)} className="w-full h-full border-0" allow="autoplay" title={`Shot ${idx + 1}`} />
+                            ) : (
+                              <img src={getViewableImageUrl(slotMedia.url)} className="w-full h-full object-contain" />
+                            )}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = [...mediaSlots];
+                            updated[idx] = { base64: null, type: null, name: null, url: null };
+                            setMediaSlots(updated);
+                            startStream();
+                          }}
+                          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white"
+                        >
+                          <RotateCcw size={16} />
+                        </button>
                       </div>
                     ) : (
-                      <img src={getViewableImageUrl(mediaSlots[activeSlot].url)} className="w-full h-full object-contain bg-black" alt="Existing Media" />
+                      isSlotActive ? (
+                        <div className="w-full h-full relative">
+                          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
+                            <div className="flex bg-black/40 backdrop-blur-xl p-1 rounded-xl border border-white/20">
+                              <button type="button" onClick={() => setMode('camera')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Photo</button>
+                              <button type="button" onClick={() => setMode('video')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Video</button>
+                            </div>
+                            {mode === 'camera' ? (
+                              <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
+                                <Camera size={24} className="text-dark-orange" />
+                              </button>
+                            ) : (
+                              <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}>
+                                {isRecording ? <Square size={20} className="text-white fill-white" /> : <Play size={22} className="text-dark-orange ml-1" />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-800 transition-colors">
+                          <PlusCircle size={32} className="mb-2 opacity-50" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Tap to enable slot {idx + 1}</p>
+                        </div>
+                      )
                     )}
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[8px] font-black uppercase text-white tracking-widest">Saved Slot {activeSlot + 1}</div>
                   </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const updated = [...mediaSlots];
-                    updated[activeSlot] = { base64: null, type: null, name: null, url: null };
-                    setMediaSlots(updated);
-                    startStream();
-                  }}
-                  className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white transition-all"
-                >
-                  <RotateCcw size={16} />
-                </button>
-              </div>
-            ) : (
-              <>
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover opacity-50" />
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                  <div className="flex bg-white/10 backdrop-blur-xl p-1 rounded-lg">
-                    <button type="button" onClick={() => setMode('camera')} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${mode === 'camera' ? 'bg-white text-slate-900' : 'text-white'}`}>Photo</button>
-                    <button type="button" onClick={() => setMode('video')} className={`px-3 py-1.5 rounded text-[9px] font-black uppercase tracking-wider transition-all ${mode === 'video' ? 'bg-white text-slate-900' : 'text-white'}`}>Video</button>
-                  </div>
-                  {mode === 'camera' ? (
-                    <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all"> <Camera size={20} className="text-dark-orange" /> </button>
-                  ) : (
-                    <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-all ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}> {isRecording ? <Square size={18} className="text-white" /> : <Play size={18} className="text-dark-orange ml-0.5" />} </button>
-                  )}
                 </div>
-              </>
-            )}
+              );
+            })}
           </div>
         </section>
 
@@ -823,26 +837,28 @@ const Modal = ({ record, onClose, onEdit }) => {
               <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Camera size={12} /> Diagnostic Media ({mediaUrls.length}/4)
               </p>
-              
+
               <div className="rounded-xl overflow-hidden border border-slate-200 bg-black relative shadow-inner aspect-video">
                 {mediaUrls[activeMediaIndex].includes('video') || mediaUrls[activeMediaIndex].match(/\.(mp4|webm|mov|ogg)$/i) ? (
-                  <iframe 
-                    src={getEmbedViewerUrl(mediaUrls[activeMediaIndex])} 
-                    className="w-full h-full border-0 absolute inset-0" 
+                  <iframe
+                    src={getEmbedViewerUrl(mediaUrls[activeMediaIndex])}
+                    className="w-full h-full border-0 absolute inset-0"
                     allow="autoplay"
+                    loading="lazy"
                     title={`Media ${activeMediaIndex + 1}`}
                   />
                 ) : (
-                  <img 
-                    src={getViewableImageUrl(mediaUrls[activeMediaIndex])} 
-                    alt="Diagnostic" 
+                  <img
+                    src={getViewableImageUrl(mediaUrls[activeMediaIndex])}
+                    alt="Diagnostic"
                     className="w-full h-full object-contain bg-black"
+                    loading="lazy"
                   />
                 )}
-                
-                <a 
-                  href={mediaUrls[activeMediaIndex]} 
-                  target="_blank" 
+
+                <a
+                  href={mediaUrls[activeMediaIndex]}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur text-white rounded text-[8px] font-black uppercase hover:bg-black/80 transition-all flex items-center gap-1 shadow-lg"
                 >
@@ -857,9 +873,8 @@ const Modal = ({ record, onClose, onEdit }) => {
                     <button
                       key={idx}
                       onClick={() => setActiveMediaIndex(idx)}
-                      className={`w-20 h-14 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${
-                        activeMediaIndex === idx ? 'border-dark-orange scale-105 shadow-md' : 'border-slate-100 opacity-60'
-                      }`}
+                      className={`w-20 h-14 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${activeMediaIndex === idx ? 'border-dark-orange scale-105 shadow-md' : 'border-slate-100 opacity-60'
+                        }`}
                     >
                       {url.includes('video') || url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
                         <div className="w-full h-full bg-slate-800 flex items-center justify-center relative">
