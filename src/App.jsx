@@ -164,8 +164,8 @@ const App = () => {
       <header className="bg-navy border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="w-10 h-10 md:w-11 md:h-11 bg-white/10 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 border border-white/20">
-              <span className="text-orange-400 text-2xl font-black">🕉️</span>
+            <div className="w-9 h-9 md:w-10 md:h-10 bg-dark-orange rounded-lg flex items-center justify-center shadow-lg flex-shrink-0 overflow-hidden">
+              <span className="text-white text-xl md:text-2xl font-black">ௐ</span>
             </div>
             <div className="flex flex-col">
               <h1 className="text-base md:text-xl font-black tracking-tight text-white leading-none">Guru Ortho</h1>
@@ -174,13 +174,15 @@ const App = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setView('home')}
-              className={`p-2 rounded-xl transition-all border ${view === 'home' ? 'bg-dark-orange border-dark-orange text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-white/70 hover:bg-slate-700'}`}
-              title="Home Dashboard"
-            >
-              <Home size={18} />
-            </button>
+            {view !== 'home' && (
+              <button
+                onClick={() => setView('home')}
+                className="clinical-btn-secondary p-2 bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+                title="Home"
+              >
+                <Stethoscope size={18} />
+              </button>
+            )}
             <button
               onClick={handleAdd}
               className="clinical-btn-primary p-2 md:px-4 md:py-2 text-[10px] md:text-sm whitespace-nowrap bg-dark-orange hover:bg-orange-700 border-0"
@@ -208,6 +210,7 @@ const App = () => {
             <RegistrationForm
               key="reg"
               editData={editingRecord}
+              showNotification={showNotification}
               onSuccess={(msg) => {
                 showNotification(msg || 'Synced successfully');
                 loadRecords();
@@ -443,7 +446,7 @@ const StatItem = ({ label, value, icon, color }) => (
   </div>
 );
 
-const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
+const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotification }) => {
   const [formData, setFormData] = useState({
     name: '', age: '', gender: 'Male', mobile: '',
     service_type: 'OP', address: '', occupation: '',
@@ -458,6 +461,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   ]);
   const [documentFile, setDocumentFile] = useState({ base64: null, type: null, name: null, url: null });
   const [activeSlot, setActiveSlot] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
