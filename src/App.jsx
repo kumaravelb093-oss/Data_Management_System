@@ -617,8 +617,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
       };
       const res = await submitToGas(payload);
       if (res.success) onSuccess(res.message);
-      else onError(res.error || 'Server rejected');
-    } catch (err) { onError('Sync Fail'); }
+      else showNotification(res.error || 'Server rejected', 'error');
+    } catch (err) { showNotification('Sync Fail', 'error'); }
     finally { setIsSubmitting(false); }
   };
 
@@ -782,15 +782,15 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
           </div>
         </section>
 
-        {/* Document Upload Section */}
+        {/* Supporting Documents Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
           <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
-            <Upload size={12} /> Supporting Documents (Optional)
+            <Upload size={14} className="text-dark-orange" /> Supporting Clinical Documents (Optional)
           </h4>
           <div className="relative group p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-dark-orange transition-all bg-slate-50/50 flex flex-col items-center justify-center gap-3">
             {documentFile.base64 || documentFile.url ? (
               <div className="flex flex-col items-center gap-3 w-full">
-                <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange">
+                <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange ring-4 ring-orange-50">
                   <File size={32} />
                 </div>
                 <div className="text-center">
@@ -798,9 +798,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                   <button
                     type="button"
                     onClick={() => setDocumentFile({ base64: null, type: null, name: null, url: null })}
-                    className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline"
+                    className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline flex items-center gap-1 mx-auto"
                   >
-                    Remove Document
+                    <X size={10} /> Remove Document
                   </button>
                 </div>
               </div>
@@ -811,7 +811,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                 </div>
                 <div className="text-center">
                   <p className="text-[11px] font-black text-slate-600 uppercase tracking-tight">Upload PDF, Image or Video</p>
-                  <p className="text-[9px] font-bold text-slate-400 mt-1">Files in your phone memory</p>
+                  <p className="text-[9px] font-bold text-slate-400 mt-1">Select from your device storage</p>
                 </div>
                 <input
                   type="file"
