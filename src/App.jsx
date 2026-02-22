@@ -109,7 +109,7 @@ const getEmbedViewerUrl = (url) => {
 
 // Helper: Get record date field (handles different field names)
 const getRecordDate = (record) => {
-  return record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp || record.entry_date_and_time;
+  return record.date || record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp || record.entry_date_and_time || record.entry_date;
 };
 
 const App = () => {
@@ -256,8 +256,8 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   // Optimized: Memoize stats calculation with proper date parsing
   const stats = useMemo(() => ({
     today: records.filter(r => isToday(getRecordDate(r))).length,
-    op: records.filter(r => (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase() === 'OP').length,
-    ip: records.filter(r => (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase() === 'IP').length,
+    op: records.filter(r => (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase() === 'OP').length,
+    ip: records.filter(r => (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase() === 'IP').length,
     total: records.length
   }), [records]);
 
@@ -277,7 +277,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         complaint.toLowerCase().includes(search)
       );
 
-      const sector = (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase();
+      const sector = (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase();
       const matchesTab = activeTab === 'All' || sector === activeTab;
 
       return matchesSearch && matchesTab;
@@ -337,9 +337,9 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <div key={i} className="p-4 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                     }`}>
-                    {record.service_type || record.sector || record.service || record.type || 'OP'}
+                    {record.service_type || record.sector || record.service || record.type || record.category || 'OP'}
                   </span>
                   <span className="text-[10px] font-black text-slate-500">{formatDate(getRecordDate(record))}</span>
                 </div>
@@ -393,11 +393,11 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
                   </td>
                   <td className="font-bold text-slate-900">{record.patient_name || record.name || record.full_name || record.patient}</td>
-                  <td>{record.age || '-'}y/{(record.gender || record.sex || 'M')?.[0]}</td>
+                  <td>{record.age || '-'}y/{(record.gender || record.sex || record.sex_type || 'M')?.[0]}</td>
                   <td>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                       }`}>
-                      {record.service_type || record.sector || record.service || record.type || 'OP'}
+                      {record.service_type || record.sector || record.service || record.type || record.category || 'OP'}
                     </span>
                   </td>
                   <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || record.complaint || '-'}</td>
@@ -707,7 +707,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                           slotMedia.type.startsWith('image') ? (
                             <img src={slotMedia.base64} className="w-full h-full object-contain" />
                           ) : (
-                            <video src={slotMedia.previewUrl || slotMedia.base64} className="w-full h-full object-contain" controls autoPlay muted playsInline />
+                            <video src={slotMedia.previewUrl || slotMedia.base64} className="w-full h-full object-contain" controls autoPlay muted playsInline preload="auto" />
                           )
                         ) : (
                           <div className="w-full h-full">
@@ -926,13 +926,13 @@ const Modal = ({ record, onClose, onEdit }) => {
         <div className="px-4 py-5 md:px-6 md:py-6 bg-navy text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-800 to-navy rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg border border-white/10">
-              {(record.patient_name || record.name)?.[0]}
+              {(record.patient_name || record.name || record.full_name || record.patient)?.[0]}
             </div>
             <div>
-              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name || record.name}</h3>
+              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name || record.name || record.full_name || record.patient}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || 'OP')?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
-                  }`}>{record.service_type || record.sector || 'OP'}</span>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category || 'OP')?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
+                  }`}>{record.service_type || record.sector || record.service || record.type || record.category || 'OP'}</span>
                 <span className="text-[9px] font-bold text-slate-400">{record.patient_id || record.id}</span>
               </div>
             </div>
@@ -977,8 +977,8 @@ const Modal = ({ record, onClose, onEdit }) => {
           </div>
           {/* Quick Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-            <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender || 'M'}`} icon={<User size={12} />} />
-            <InfoItem label="Contact" value={record.mobile_number || record.mobile} icon={<Phone size={12} />} />
+            <InfoItem label="Age/Gender" value={`${record.age || '-'}y / ${record.gender || record.sex || record.sex_type || 'M'}`} icon={<User size={12} />} />
+            <InfoItem label="Contact" value={record.mobile_number || record.mobile || record.contact || record.phone || '-'} icon={<Phone size={12} />} />
             <InfoItem label="Occupation" value={record.occupation || '-'} icon={<Briefcase size={12} />} />
             <InfoItem label="Date" value={formatDate(recordDate)} icon={<Calendar size={12} />} />
           </div>
@@ -990,8 +990,8 @@ const Modal = ({ record, onClose, onEdit }) => {
 
           {/* Clinical Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <DataBlock label="Chief Complaint" value={record.chief_complaint} icon={<FileWarning size={12} />} />
-            <DataBlock label="Medical History" value={record.medical_history} icon={<HeartPulse size={12} />} />
+            <DataBlock label="Chief Complaint" value={record.chief_complaint || record.complaint} icon={<FileWarning size={12} />} />
+            <DataBlock label="Medical History" value={record.medical_history || record.history} icon={<HeartPulse size={12} />} />
           </div>
 
           {/* Treatment Details */}
