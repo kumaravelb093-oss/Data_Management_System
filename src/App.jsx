@@ -459,6 +459,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   ]);
   const [documentFile, setDocumentFile] = useState({ base64: null, type: null, name: null, url: null });
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const timerRef = useRef(null);
   const [mode, setMode] = useState('camera'); // 'camera' or 'video'
@@ -545,44 +546,48 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   };
 
   const startRecording = () => {
-    if (!stream) {
-      showNotification('Camera not ready', 'error');
-      return;
-    }
+    if (!stream || isProcessing) return;
 
-    setIsRecording(true);
     const chunks = [];
     const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
 
-    const mr = new MediaRecorder(stream, { mimeType });
-    mediaRecorderRef.current = mr;
-    mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
-    mr.onstop = () => {
-      const blob = new Blob(chunks, { type: mimeType });
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = () => {
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const newMedia = {
-          base64: reader.result,
-          type: mimeType,
-          name: `vid_${Date.now()}.${ext}`,
-          url: null
+    try {
+      const mr = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mr;
+      mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
+      mr.onstop = () => {
+        setIsProcessing(true);
+        const blob = new Blob(chunks, { type: mimeType });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const newMedia = {
+            base64: reader.result,
+            type: mimeType,
+            name: `vid_${Date.now()}.${ext}`,
+            url: null
+          };
+          const updated = [...mediaSlots];
+          updated[activeSlot] = newMedia;
+          setMediaSlots(updated);
+          setIsProcessing(false);
+          showNotification('Video processed successfully');
         };
-        const updated = [...mediaSlots];
-        updated[activeSlot] = newMedia;
-        setMediaSlots(updated);
-        setIsRecording(false);
-        showNotification('Video captured successfully');
       };
-    };
-    mr.start();
+
+      mr.start();
+      setIsRecording(true);
+    } catch (err) {
+      showNotification('Recording failed to start', 'error');
+    }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
 
@@ -721,30 +726,45 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                         <div className="w-full h-full relative">
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
+                          {/* Processing Overlay */}
+                          {isProcessing && (
+                            <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                              <RefreshCw className="animate-spin text-dark-orange" size={40} />
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white animate-pulse">Processing Video...</p>
+                            </div>
+                          )}
+
                           {/* Recording Feedback Overlay */}
                           {isRecording && (
-                            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/20">
+                            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/20 z-10">
                               <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
                               <span className="text-[10px] font-black text-white uppercase tracking-widest">{formatRecordTime(recordTime)}</span>
                               <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Live</span>
                             </div>
                           )}
 
-                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
-                            {!isRecording && (
+                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4 z-10">
+                            {!isRecording && !isProcessing && (
                               <div className="flex bg-black/40 backdrop-blur-xl p-1 rounded-xl border border-white/20">
                                 <button type="button" onClick={() => setMode('camera')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Photo</button>
                                 <button type="button" onClick={() => setMode('video')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Video</button>
                               </div>
                             )}
-                            {mode === 'camera' ? (
-                              <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
-                                <Camera size={24} className="text-dark-orange" />
-                              </button>
-                            ) : (
-                              <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 ${isRecording ? 'bg-rose-500' : 'bg-white'}`}>
-                                {isRecording ? <Square size={20} className="text-white fill-white" /> : <Play size={22} className="text-dark-orange ml-1" />}
-                              </button>
+
+                            {!isProcessing && (
+                              mode === 'camera' ? (
+                                <button type="button" onClick={capturePhoto} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
+                                  <Camera size={26} className="text-dark-orange" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={isRecording ? stopRecording : startRecording}
+                                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 transition-all ${isRecording ? 'bg-rose-500 scale-110 shadow-rose-500/20' : 'bg-white'}`}
+                                >
+                                  {isRecording ? <Square size={22} className="text-white fill-white" /> : <Play size={24} className="text-dark-orange ml-1" />}
+                                </button>
+                              )
                             )}
                           </div>
                         </div>
