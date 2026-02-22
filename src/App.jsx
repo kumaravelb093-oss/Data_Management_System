@@ -164,8 +164,8 @@ const App = () => {
       <header className="bg-navy border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-3 md:px-4 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 bg-dark-orange rounded-lg flex items-center justify-center shadow-lg flex-shrink-0 overflow-hidden">
-              <span className="text-white text-xl md:text-2xl font-black">ௐ</span>
+            <div className="w-9 h-9 md:w-10 md:h-10 bg-dark-orange rounded-lg flex items-center justify-center shadow-lg flex-shrink-0">
+              <Stethoscope className="text-white" size={20} />
             </div>
             <div className="flex flex-col">
               <h1 className="text-base md:text-xl font-black tracking-tight text-white leading-none">Guru Ortho</h1>
@@ -180,7 +180,7 @@ const App = () => {
                 className="clinical-btn-secondary p-2 bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
                 title="Home"
               >
-                <Stethoscope size={18} />
+                <Home size={18} />
               </button>
             )}
             <button
@@ -256,8 +256,8 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   // Optimized: Memoize stats calculation with proper date parsing
   const stats = useMemo(() => ({
     today: records.filter(r => isToday(getRecordDate(r))).length,
-    op: records.filter(r => r.service_type?.trim().toUpperCase() === 'OP').length,
-    ip: records.filter(r => r.service_type?.trim().toUpperCase() === 'IP').length,
+    op: records.filter(r => (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase() === 'OP').length,
+    ip: records.filter(r => (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase() === 'IP').length,
     total: records.length
   }), [records]);
 
@@ -265,16 +265,20 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   const filtered = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     return records.filter(r => {
+      const name = r.patient_name || r.name || r.full_name || r.patient || '';
+      const mobile = r.mobile_number || r.mobile || r.contact || r.phone || '';
+      const id = r.patient_id || r.id || '';
+      const complaint = r.chief_complaint || r.complaint || '';
+
       const matchesSearch = search === '' || (
-        r.patient_name?.toLowerCase().includes(search) ||
-        String(r.mobile_number).includes(search) ||
-        r.patient_id?.toLowerCase().includes(search) ||
-        r.address?.toLowerCase().includes(search) ||
-        r.chief_complaint?.toLowerCase().includes(search)
+        name.toLowerCase().includes(search) ||
+        String(mobile).includes(search) ||
+        id.toLowerCase().includes(search) ||
+        complaint.toLowerCase().includes(search)
       );
 
-      const recordSector = r.service_type?.trim().toUpperCase();
-      const matchesTab = activeTab === 'All' || recordSector === activeTab;
+      const sector = (r.service_type || r.sector || r.service || r.type)?.trim().toUpperCase();
+      const matchesTab = activeTab === 'All' || sector === activeTab;
 
       return matchesSearch && matchesTab;
     });
@@ -333,16 +337,16 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <div key={i} className="p-4 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                     }`}>
-                    {record.service_type || 'OP'}
+                    {record.service_type || record.sector || record.service || record.type || 'OP'}
                   </span>
                   <span className="text-[10px] font-black text-slate-500">{formatDate(getRecordDate(record))}</span>
                 </div>
-                <h3 className="font-black text-slate-900 text-sm truncate">{record.patient_name}</h3>
-                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age}y • {record.mobile_number}</p>
-                {record.chief_complaint && (
-                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{record.chief_complaint}"</p>
+                <h3 className="font-black text-slate-900 text-sm truncate">{record.patient_name || record.name || record.full_name || record.patient}</h3>
+                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age || '-'}y • {record.mobile_number || record.mobile || record.contact || record.phone || '-'}</p>
+                {(record.chief_complaint || record.complaint) && (
+                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{record.chief_complaint || record.complaint}"</p>
                 )}
               </div>
               {/* Mobile Action Buttons */}
@@ -388,16 +392,16 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     <div>{formatDate(getRecordDate(record))}</div>
                     <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
                   </td>
-                  <td className="font-bold text-slate-900">{record.patient_name}</td>
-                  <td>{record.age}y/{record.gender?.[0]}</td>
+                  <td className="font-bold text-slate-900">{record.patient_name || record.name || record.full_name || record.patient}</td>
+                  <td>{record.age || '-'}y/{(record.gender || record.sex || 'M')?.[0]}</td>
                   <td>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                       }`}>
-                      {record.service_type || 'OP'}
+                      {record.service_type || record.sector || record.service || record.type || 'OP'}
                     </span>
                   </td>
-                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || '-'}</td>
-                  <td className="text-xs">{record.mobile_number}</td>
+                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || record.complaint || '-'}</td>
+                  <td className="text-xs">{record.mobile_number || record.mobile || record.contact || record.phone || '-'}</td>
                   <td>
                     <div className="flex items-center justify-center gap-1">
                       <button
@@ -563,6 +567,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
       mr.onstop = () => {
         setIsProcessing(true);
         const blob = new Blob(chunks, { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob); // Create instant local URL for preview
+        
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
@@ -571,6 +577,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
             base64: reader.result,
             type: mimeType,
             name: `vid_${Date.now()}.${ext}`,
+            previewUrl: blobUrl, // Use local URL for instant playback
             url: null
           };
           const updated = [...mediaSlots];
@@ -700,7 +707,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                           slotMedia.type.startsWith('image') ? (
                             <img src={slotMedia.base64} className="w-full h-full object-contain" />
                           ) : (
-                            <video src={slotMedia.base64} className="w-full h-full object-contain" controls />
+                            <video src={slotMedia.previewUrl || slotMedia.base64} className="w-full h-full object-contain" controls autoPlay muted playsInline />
                           )
                         ) : (
                           <div className="w-full h-full">
@@ -919,14 +926,14 @@ const Modal = ({ record, onClose, onEdit }) => {
         <div className="px-4 py-5 md:px-6 md:py-6 bg-navy text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-800 to-navy rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg border border-white/10">
-              {record.patient_name?.[0]}
+              {(record.patient_name || record.name)?.[0]}
             </div>
             <div>
-              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name}</h3>
+              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name || record.name}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${record.service_type?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
-                  }`}>{record.service_type || 'OP'}</span>
-                <span className="text-[9px] font-bold text-slate-400">{record.patient_id}</span>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || 'OP')?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
+                  }`}>{record.service_type || record.sector || 'OP'}</span>
+                <span className="text-[9px] font-bold text-slate-400">{record.patient_id || record.id}</span>
               </div>
             </div>
           </div>
@@ -970,8 +977,8 @@ const Modal = ({ record, onClose, onEdit }) => {
           </div>
           {/* Quick Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-            <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender}`} icon={<User size={12} />} />
-            <InfoItem label="Contact" value={record.mobile_number} icon={<Phone size={12} />} />
+            <InfoItem label="Age/Gender" value={`${record.age}y / ${record.gender || 'M'}`} icon={<User size={12} />} />
+            <InfoItem label="Contact" value={record.mobile_number || record.mobile} icon={<Phone size={12} />} />
             <InfoItem label="Occupation" value={record.occupation || '-'} icon={<Briefcase size={12} />} />
             <InfoItem label="Date" value={formatDate(recordDate)} icon={<Calendar size={12} />} />
           </div>
