@@ -3,7 +3,7 @@ import {
   UserPlus, Camera, Video, Stethoscope, Phone, MapPin,
   CheckCircle2, AlertCircle, X, FileText, Calendar,
   ClipboardList, User, Home, Search, RefreshCw,
-  Plus, Eye, RotateCcw, Play, Square, Edit3,
+  Plus, Eye, RotateCcw, Play, Square, Edit3, Upload, File,
   ChevronRight, Activity, Database, Users, TrendingUp, Printer,
   Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning, PlusCircle
 } from 'lucide-react';
@@ -457,7 +457,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     { base64: null, type: null, name: null, url: null },
     { base64: null, type: null, name: null, url: null }
   ]);
-  const [activeSlot, setActiveSlot] = useState(0);
+  const [documentFile, setDocumentFile] = useState({ base64: null, type: null, name: null, url: null });
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const timerRef = useRef(null);
@@ -593,8 +593,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
     try {
       const payload = {
         ...formData,
-        patient_id: editData?.patient_id || null,
-        entry_date_time: editData ? getRecordDate(editData) : null,
+        patient_id: editData?.patient_id,
+        entry_date_time: editData?.entry_date___time || editData?.entry_date_time,
         enteredBy: 'Practitioner',
         // Send existing URLs
         media_url_1: mediaSlots[0].url,
@@ -606,6 +606,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         media2: mediaSlots[1].base64 ? mediaSlots[1] : null,
         media3: mediaSlots[2].base64 ? mediaSlots[2] : null,
         media4: mediaSlots[3].base64 ? mediaSlots[3] : null,
+        // Send document upload
+        document_file: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
+        document_url: documentFile.url,
       };
       const res = await submitToGas(payload);
       if (res.success) onSuccess(res.message);
@@ -759,6 +762,60 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
           </div>
         </section>
 
+        {/* Document Upload Section */}
+        <section className="glass-card p-4 md:p-6 space-y-4">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+            <Upload size={12} /> Supporting Documents (Optional)
+          </h4>
+          <div className="relative group p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-dark-orange transition-all bg-slate-50/50 flex flex-col items-center justify-center gap-3">
+            {documentFile.base64 || documentFile.url ? (
+              <div className="flex flex-col items-center gap-3 w-full">
+                <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange">
+                  <File size={32} />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-black text-slate-700 truncate max-w-[250px]">{documentFile.name || 'document_uploaded'}</p>
+                  <button
+                    type="button"
+                    onClick={() => setDocumentFile({ base64: null, type: null, name: null, url: null })}
+                    className="mt-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline"
+                  >
+                    Remove Document
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="w-12 h-12 bg-white rounded-xl shadow-md flex items-center justify-center text-slate-400">
+                  <Upload size={24} />
+                </div>
+                <div className="text-center">
+                  <p className="text-[11px] font-black text-slate-600 uppercase tracking-tight">Upload PDF, Image or Video</p>
+                  <p className="text-[9px] font-bold text-slate-400 mt-1">Files in your phone memory</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*,video/*,.pdf"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setDocumentFile({
+                        base64: reader.result,
+                        type: file.type,
+                        name: file.name
+                      });
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </section>
+
         {/* Treatment Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
           <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
@@ -881,6 +938,32 @@ const Modal = ({ record, onClose, onEdit }) => {
             <DataBlock label="Treatment" value={record.treatment} />
             <DataBlock label="Remarks" value={record.remarks} />
           </div>
+
+          {/* Attached Document */}
+          {record.document_url && record.document_url !== 'None' && (
+            <div className="space-y-2">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                <File size={12} /> Attached Document
+              </p>
+              <a
+                href={record.document_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-dark-orange shadow-sm">
+                    <File size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Clinical Document</p>
+                    <p className="text-[9px] font-bold text-slate-400">View Attachment</p>
+                  </div>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 group-hover:text-dark-orange transition-all" />
+              </a>
+            </div>
+          )}
 
           {/* Media Display - Multi-Gallery Support */}
           {mediaUrls.length > 0 && (

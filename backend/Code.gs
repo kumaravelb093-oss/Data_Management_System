@@ -1,6 +1,6 @@
 /**
- * GURU ORTHO CLINIC - PRODUCTION REST API v7.0
- * Features: 4 Vertical Media Slots, Extended Patient Data, Performance Optimized
+ * GURU ORTHO CLINIC - PRODUCTION REST API v8.0
+ * Features: 4 Vertical Media Slots + Dedicated Document Upload (PDF/IMG/VID)
  */
 
 const CONFIG = {
@@ -25,7 +25,8 @@ function initializeSystem() {
       'Entry Date & Time', 'Patient ID', 'Patient Name', 'Age', 'Gender', 
       'Service Type (OP/IP)', 'Mobile Number', 'Address', 'Occupation',
       'Chief Complaint', 'Medical History', 'Diagnosis', 'Treatment', 
-      'Remarks', 'Media URL 1', 'Media URL 2', 'Media URL 3', 'Media URL 4', 'Entered By'
+      'Remarks', 'Media URL 1', 'Media URL 2', 'Media URL 3', 'Media URL 4', 
+      'Document URL', 'Entered By'
     ];
     
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -36,7 +37,7 @@ function initializeSystem() {
     const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(CONFIG.UPLOAD_FOLDER_NAME);
     folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-    return "Setup Complete! 4 Vertical Media Slots Enabled.";
+    return "Setup Complete! 4 Media Slots + Document Upload Enabled.";
   } catch (e) {
     return "Error: " + e.toString();
   }
@@ -97,12 +98,18 @@ function doPost(e) {
       data.media_url_4 || ''
     ];
 
-    // Upload new media if provided (Slot mapping)
+    // Upload new media if provided
     for(let i = 0; i < 4; i++) {
       const mediaKey = `media${i+1}`;
       if (data[mediaKey] && data[mediaKey].base64 && data[mediaKey].base64.startsWith('data:')) {
         mediaUrls[i] = uploadFile(data[mediaKey].base64, data[mediaKey].name, data[mediaKey].type);
       }
+    }
+
+    // Handle Dedicated Document Upload
+    let documentUrl = data.document_url || '';
+    if (data.document_file && data.document_file.base64 && data.document_file.base64.startsWith('data:')) {
+      documentUrl = uploadFile(data.document_file.base64, data.document_file.name, data.document_file.type);
     }
 
     const timestamp = new Date();
@@ -128,6 +135,7 @@ function doPost(e) {
       mediaUrls[1],
       mediaUrls[2],
       mediaUrls[3],
+      documentUrl,
       data.enteredBy || 'Vercel App'
     ];
 
