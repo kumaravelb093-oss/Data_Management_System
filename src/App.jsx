@@ -783,11 +783,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
         </section>
 
         {/* Supporting Documents Section */}
-        <section className="glass-card p-4 md:p-6 space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+        <section className="glass-card p-4 md:p-6 space-y-4 border-2 border-orange-100 bg-orange-50/10">
+          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-500 uppercase tracking-widest border-b border-orange-100 pb-3">
             <Upload size={14} className="text-dark-orange" /> Supporting Clinical Documents (Optional)
           </h4>
-          <div className="relative group p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-dark-orange transition-all bg-slate-50/50 flex flex-col items-center justify-center gap-3">
+          <div className="relative group p-6 border-2 border-dashed border-orange-200 rounded-2xl hover:border-dark-orange transition-all bg-white flex flex-col items-center justify-center gap-3 shadow-sm">
             {documentFile.base64 || documentFile.url ? (
               <div className="flex flex-col items-center gap-3 w-full">
                 <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-dark-orange ring-4 ring-orange-50">

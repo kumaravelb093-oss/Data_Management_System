@@ -26,7 +26,15 @@ function doPost(e) {
       sheet.getRange(1, 1, 1, 19).setFontWeight('bold').setBackground('#f3f3f3');
     }
 
-    const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+    let folder;
+    try {
+      folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+    } catch (e) {
+      // Create folder if ID is invalid or not found
+      folder = DriveApp.createFolder('GuruOrtho_Media_Vault');
+      // Update CONFIG dynamically for this session (log the new ID for user to see)
+      console.log('New Folder Created ID:', folder.getId());
+    }
     
     // Process Media Slots (1-4)
     const mediaUrls = [data.media_url_1, data.media_url_2, data.media_url_3, data.media_url_4];
