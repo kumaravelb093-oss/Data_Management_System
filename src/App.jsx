@@ -459,11 +459,29 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   ]);
   const [activeSlot, setActiveSlot] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState('camera');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recordTime, setRecordTime] = useState(0);
+  const timerRef = useRef(null);
+  const [mode, setMode] = useState('camera'); // 'camera' or 'video'
   const videoRef = useRef(null);
+  const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const [stream, setStream] = useState(null);
+
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = setInterval(() => setRecordTime(p => p + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+      setRecordTime(0);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isRecording]);
+
+  const formatRecordTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     if (editData) {
@@ -527,25 +545,46 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
   };
 
   const startRecording = () => {
+    if (!stream) {
+      showNotification('Camera not ready', 'error');
+      return;
+    }
+
     setIsRecording(true);
     const chunks = [];
-    const mr = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+    const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+
+    const mr = new MediaRecorder(stream, { mimeType });
     mediaRecorderRef.current = mr;
     mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
     mr.onstop = () => {
+      const blob = new Blob(chunks, { type: mimeType });
       const reader = new FileReader();
-      reader.readAsDataURL(new Blob(chunks, { type: 'video/webm' }));
+      reader.readAsDataURL(blob);
       reader.onloadend = () => {
-        const newMedia = { base64: reader.result, type: 'video/webm', name: `vid_${Date.now()}.webm`, url: null };
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const newMedia = {
+          base64: reader.result,
+          type: mimeType,
+          name: `vid_${Date.now()}.${ext}`,
+          url: null
+        };
         const updated = [...mediaSlots];
         updated[activeSlot] = newMedia;
         setMediaSlots(updated);
+        setIsRecording(false);
+        showNotification('Video captured successfully');
       };
     };
     mr.start();
   };
 
-  const stopRecording = () => mediaRecorderRef.current?.stop();
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -678,17 +717,29 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel }) => {
                       isSlotActive ? (
                         <div className="w-full h-full relative">
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
-                            <div className="flex bg-black/40 backdrop-blur-xl p-1 rounded-xl border border-white/20">
-                              <button type="button" onClick={() => setMode('camera')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Photo</button>
-                              <button type="button" onClick={() => setMode('video')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Video</button>
+
+                          {/* Recording Feedback Overlay */}
+                          {isRecording && (
+                            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/20">
+                              <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest">{formatRecordTime(recordTime)}</span>
+                              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Live</span>
                             </div>
+                          )}
+
+                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4">
+                            {!isRecording && (
+                              <div className="flex bg-black/40 backdrop-blur-xl p-1 rounded-xl border border-white/20">
+                                <button type="button" onClick={() => setMode('camera')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Photo</button>
+                                <button type="button" onClick={() => setMode('video')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Video</button>
+                              </div>
+                            )}
                             {mode === 'camera' ? (
                               <button type="button" onClick={capturePhoto} className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
                                 <Camera size={24} className="text-dark-orange" />
                               </button>
                             ) : (
-                              <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 ${isRecording ? 'bg-rose-500 animate-pulse' : 'bg-white'}`}>
+                              <button type="button" onClick={isRecording ? stopRecording : startRecording} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 ${isRecording ? 'bg-rose-500' : 'bg-white'}`}>
                                 {isRecording ? <Square size={20} className="text-white fill-white" /> : <Play size={22} className="text-dark-orange ml-1" />}
                               </button>
                             )}
