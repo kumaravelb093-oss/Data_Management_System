@@ -1,6 +1,7 @@
 /**
- * GURU ORTHO DATA MANAGEMENT SYSTEM - BACKEND v8.0
+ * GURU ORTHO DATA MANAGEMENT SYSTEM - BACKEND v9.0
  * Features: 4 Media Slots + Dedicated Document Upload
+ * Fixed: Hardcoded headers ensure data-key alignment
  */
 
 const CONFIG = {
@@ -8,6 +9,37 @@ const CONFIG = {
   SHEET_NAME: 'Sheet1',
   ROOT_FOLDER_NAME: 'GURU_ORTHO_RECORDS'
 };
+
+// CRITICAL: These headers MUST match the exact column order in doPost's rowData array
+const HEADERS = [
+  'patient_id',
+  'entry_date_time',
+  'patient_name',
+  'age',
+  'gender',
+  'mobile_number',
+  'service_type',
+  'address',
+  'occupation',
+  'chief_complaint',
+  'medical_history',
+  'diagnosis',
+  'treatment',
+  'remarks',
+  'media_url_1',
+  'media_url_2',
+  'media_url_3',
+  'media_url_4',
+  'document_url'
+];
+
+function ensureHeaders_(sheet) {
+  const firstCell = sheet.getRange(1, 1).getValue();
+  if (!firstCell || String(firstCell).trim() === '') {
+    // Sheet has no headers — write them
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+}
 
 function doPost(e) {
   const res = ContentService.createTextOutput();
@@ -17,6 +49,9 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME) || ss.getSheets()[0];
+    
+    // Ensure header row exists
+    ensureHeaders_(sheet);
     
     // 1. Manage Drive Folders
     let rootFolder;
@@ -28,7 +63,8 @@ function doPost(e) {
     }
     
     // Create patient-specific folder
-    const patientFolderName = `${data.patient_id}_${data.patient_name.replace(/\s+/g, '_')}`;
+    const patientName = data.patient_name || data.name || 'Unknown';
+    const patientFolderName = `${data.patient_id}_${patientName.replace(/\s+/g, '_')}`;
     let patientFolder;
     const pFolders = rootFolder.getFoldersByName(patientFolderName);
     if (pFolders.hasNext()) {
@@ -64,22 +100,22 @@ function doPost(e) {
       docUrl = docFile.getUrl();
     }
 
-    // 4. Update Sheet
+    // 4. Update Sheet — columns MUST match HEADERS order exactly
     const rowData = [
       data.patient_id,
       data.entry_date_time || new Date().toISOString(),
-      data.patient_name,
+      patientName,
       data.age,
       data.gender,
-      data.mobile_number,
-      data.service_type,
-      data.address,
-      data.occupation,
-      data.chief_complaint,
-      data.medical_history,
-      data.diagnosis,
-      data.treatment,
-      data.remarks,
+      data.mobile_number || data.mobile || '',
+      data.service_type || data.sector || 'OP',
+      data.address || '',
+      data.occupation || '',
+      data.chief_complaint || data.complaint || '',
+      data.medical_history || data.history || '',
+      data.diagnosis || '',
+      data.treatment || '',
+      data.remarks || '',
       mediaUrls[0],
       mediaUrls[1],
       mediaUrls[2],
@@ -114,11 +150,13 @@ function doGet() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME) || ss.getSheets()[0];
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    
+    // FIXED: Use hardcoded HEADERS instead of reading from sheet row 1
+    // This ensures keys always match the column positions written by doPost
     const rows = data.slice(1).map(row => {
       const obj = {};
-      headers.forEach((header, i) => {
-        obj[header.toLowerCase().replace(/\s+/g, '_')] = row[i];
+      HEADERS.forEach((header, i) => {
+        obj[header] = row[i] !== undefined ? row[i] : '';
       });
       return obj;
     });

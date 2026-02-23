@@ -109,7 +109,36 @@ const getEmbedViewerUrl = (url) => {
 
 // Helper: Get record date field (handles different field names)
 const getRecordDate = (record) => {
-  return record.date || record.entry_date___time || record.entry_date_time || record.entry_date__time || record.timestamp || record.entry_date_and_time || record.entry_date;
+  const val = record.entry_date_time || record.date || record.entry_date___time || record.entry_date__time || record.timestamp || record.entry_date_and_time || record.entry_date;
+  // Google Sheets may serialize dates as numbers or Date strings
+  if (val && typeof val === 'string' && val.trim() === '') return null;
+  return val;
+};
+
+// Helper: Get patient_id from record (handles different key names)
+const getPatientId = (record) => {
+  return record.patient_id || record.id || record.patientid || record.patient_Id || '';
+};
+
+// Helper: Get patient name from record
+const getPatientName = (record) => {
+  return record.patient_name || record.name || record.full_name || record.patient || '';
+};
+
+// Helper: Get mobile from record
+const getPatientMobile = (record) => {
+  return record.mobile_number || record.mobile || record.contact || record.phone || '';
+};
+
+// Helper: Get service type from record
+const getServiceType = (record) => {
+  const val = record.service_type || record.sector || record.service || record.type || record.category || '';
+  return String(val).trim().toUpperCase() || 'OP';
+};
+
+// Helper: Get complaint from record
+const getComplaint = (record) => {
+  return record.chief_complaint || record.complaint || '';
 };
 
 const App = () => {
@@ -256,8 +285,8 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   // Optimized: Memoize stats calculation with proper date parsing
   const stats = useMemo(() => ({
     today: records.filter(r => isToday(getRecordDate(r))).length,
-    op: records.filter(r => (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase() === 'OP').length,
-    ip: records.filter(r => (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase() === 'IP').length,
+    op: records.filter(r => getServiceType(r) === 'OP').length,
+    ip: records.filter(r => getServiceType(r) === 'IP').length,
     total: records.length
   }), [records]);
 
@@ -265,19 +294,19 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
   const filtered = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     return records.filter(r => {
-      const name = r.patient_name || r.name || r.full_name || r.patient || '';
-      const mobile = r.mobile_number || r.mobile || r.contact || r.phone || '';
-      const id = r.patient_id || r.id || '';
-      const complaint = r.chief_complaint || r.complaint || '';
+      const name = getPatientName(r);
+      const mobile = String(getPatientMobile(r));
+      const id = String(getPatientId(r));
+      const complaint = getComplaint(r);
 
       const matchesSearch = search === '' || (
         name.toLowerCase().includes(search) ||
-        String(mobile).includes(search) ||
+        mobile.includes(search) ||
         id.toLowerCase().includes(search) ||
         complaint.toLowerCase().includes(search)
       );
 
-      const sector = (r.service_type || r.sector || r.service || r.type || r.category)?.trim().toUpperCase();
+      const sector = getServiceType(r);
       const matchesTab = activeTab === 'All' || sector === activeTab;
 
       return matchesSearch && matchesTab;
@@ -337,16 +366,16 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <div key={i} className="p-4 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                     }`}>
-                    {record.service_type || record.sector || record.service || record.type || record.category || 'OP'}
+                    {getServiceType(record)}
                   </span>
                   <span className="text-[10px] font-black text-slate-500">{formatDate(getRecordDate(record))}</span>
                 </div>
-                <h3 className="font-black text-slate-900 text-sm truncate">{record.patient_name || record.name || record.full_name || record.patient}</h3>
-                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age || '-'}y • {record.mobile_number || record.mobile || record.contact || record.phone || '-'}</p>
-                {(record.chief_complaint || record.complaint) && (
-                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{record.chief_complaint || record.complaint}"</p>
+                <h3 className="font-black text-slate-900 text-sm truncate">{getPatientName(record)}</h3>
+                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age || '-'}y • {getPatientMobile(record) || '-'}</p>
+                {getComplaint(record) && (
+                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{getComplaint(record)}"</p>
                 )}
               </div>
               {/* Mobile Action Buttons */}
@@ -392,16 +421,16 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
                     <div>{formatDate(getRecordDate(record))}</div>
                     <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
                   </td>
-                  <td className="font-bold text-slate-900">{record.patient_name || record.name || record.full_name || record.patient}</td>
+                  <td className="font-bold text-slate-900">{getPatientName(record)}</td>
                   <td>{record.age || '-'}y/{(record.gender || record.sex || record.sex_type || 'M')?.[0]}</td>
                   <td>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category)?.trim().toUpperCase() === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
                       }`}>
-                      {record.service_type || record.sector || record.service || record.type || record.category || 'OP'}
+                      {getServiceType(record)}
                     </span>
                   </td>
-                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{record.chief_complaint || record.complaint || '-'}</td>
-                  <td className="text-xs">{record.mobile_number || record.mobile || record.contact || record.phone || '-'}</td>
+                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{getComplaint(record) || '-'}</td>
+                  <td className="text-xs">{getPatientMobile(record) || '-'}</td>
                   <td>
                     <div className="flex items-center justify-center gap-1">
                       <button
@@ -495,24 +524,26 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   useEffect(() => {
     if (editData) {
       setFormData({
-        name: editData.patient_name || editData.name || editData.full_name || '',
+        name: getPatientName(editData),
         age: editData.age || '',
         gender: editData.gender || editData.sex || 'Male',
-        mobile: editData.mobile_number || editData.mobile || editData.contact || editData.phone || '',
-        service_type: editData.service_type || editData.sector || editData.service || 'OP',
+        mobile: String(getPatientMobile(editData) || ''),
+        service_type: getServiceType(editData),
         address: editData.address || '',
         occupation: editData.occupation || '',
-        chief_complaint: recordValue(editData.chief_complaint || editData.complaint),
+        chief_complaint: recordValue(getComplaint(editData)),
         medical_history: recordValue(editData.medical_history || editData.history),
         diagnosis: recordValue(editData.diagnosis),
         treatment: recordValue(editData.treatment),
         remarks: recordValue(editData.remarks)
       });
+      // Filter out 'None' URLs
+      const cleanUrl = (u) => (u && String(u) !== 'None' && String(u).trim() !== '') ? u : null;
       setMediaSlots([
-        { base64: null, type: null, name: null, url: editData.media_url_1 || null },
-        { base64: null, type: null, name: null, url: editData.media_url_2 || null },
-        { base64: null, type: null, name: null, url: editData.media_url_3 || null },
-        { base64: null, type: null, name: null, url: editData.media_url_4 || null }
+        { base64: null, type: null, name: null, url: cleanUrl(editData.media_url_1) },
+        { base64: null, type: null, name: null, url: cleanUrl(editData.media_url_2) },
+        { base64: null, type: null, name: null, url: cleanUrl(editData.media_url_3) },
+        { base64: null, type: null, name: null, url: cleanUrl(editData.media_url_4) }
       ]);
     }
   }, [editData]);
@@ -607,6 +638,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+      // Resolve patient_id: use existing ID for edits, generate new for new records
+      const resolvedId = editData ? getPatientId(editData) : `GRU-${Date.now()}`;
+      // Resolve date: keep original date for edits, use current for new records
+      const resolvedDate = editData ? (getRecordDate(editData) || new Date().toISOString()) : new Date().toISOString();
+
       const payload = {
         // Map frontend keys to Code.gs expected keys
         patient_name: formData.name,
@@ -621,14 +657,14 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         diagnosis: formData.diagnosis,
         treatment: formData.treatment,
         remarks: formData.remarks,
-        patient_id: editData?.patient_id || `GRU-${Date.now()}`,
-        entry_date_time: editData?.entry_date___time || editData?.entry_date_time || new Date().toISOString(),
+        patient_id: resolvedId,
+        entry_date_time: resolvedDate,
         enteredBy: 'Practitioner',
         // Send existing URLs
-        media_url_1: mediaSlots[0].url,
-        media_url_2: mediaSlots[1].url,
-        media_url_3: mediaSlots[2].url,
-        media_url_4: mediaSlots[3].url,
+        media_url_1: mediaSlots[0].url || 'None',
+        media_url_2: mediaSlots[1].url || 'None',
+        media_url_3: mediaSlots[2].url || 'None',
+        media_url_4: mediaSlots[3].url || 'None',
         // Send new base64 uploads (Code.gs expects media_1, media_2, etc.)
         media_1: mediaSlots[0].base64 ? mediaSlots[0] : null,
         media_2: mediaSlots[1].base64 ? mediaSlots[1] : null,
@@ -636,12 +672,13 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         media_4: mediaSlots[3].base64 ? mediaSlots[3] : null,
         // Send document upload (Code.gs expects 'document')
         document: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
-        document_url: documentFile.url,
+        document_url: documentFile.url || 'None',
       };
+      console.log('[SUBMIT] patient_id:', resolvedId, 'patient_name:', formData.name, 'edit?', !!editData);
       const res = await submitToGas(payload);
       if (res.success || res.status === 'success') onSuccess(res.message || 'Record saved successfully');
       else onError(res.error || res.message || 'Server rejected');
-    } catch (err) { onError('Sync Fail'); }
+    } catch (err) { console.error('[SUBMIT ERROR]', err); onError('Sync Fail: ' + err.message); }
     finally { setIsSubmitting(false); }
   };
 
@@ -946,14 +983,14 @@ const Modal = ({ record, onClose, onEdit }) => {
         <div className="px-4 py-5 md:px-6 md:py-6 bg-navy text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-slate-800 to-navy rounded-xl md:rounded-2xl flex items-center justify-center text-white font-black text-lg md:text-xl shadow-lg border border-white/10">
-              {(record.patient_name || record.name || record.full_name || record.patient)?.[0]}
+              {getPatientName(record)?.[0]}
             </div>
             <div>
-              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{record.patient_name || record.name || record.full_name || record.patient}</h3>
+              <h3 className="text-lg md:text-xl font-black text-white tracking-tight leading-tight">{getPatientName(record)}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${(record.service_type || record.sector || record.service || record.type || record.category || 'OP')?.trim().toUpperCase() === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
-                  }`}>{record.service_type || record.sector || record.service || record.type || record.category || 'OP'}</span>
-                <span className="text-[9px] font-bold text-slate-400">{record.patient_id || record.id}</span>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-dark-orange' : 'bg-slate-700'
+                  }`}>{getServiceType(record)}</span>
+                <span className="text-[9px] font-bold text-slate-400">{getPatientId(record)}</span>
               </div>
             </div>
           </div>
@@ -980,7 +1017,7 @@ const Modal = ({ record, onClose, onEdit }) => {
             <div className="mt-4 flex justify-between items-end text-left border-t border-slate-100 pt-4">
               <div>
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Patient Name</p>
-                <p className="text-lg font-black text-slate-900 uppercase">{record.patient_name}</p>
+                <p className="text-lg font-black text-slate-900 uppercase">{getPatientName(record)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Record Date</p>
@@ -998,7 +1035,7 @@ const Modal = ({ record, onClose, onEdit }) => {
           {/* Quick Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
             <InfoItem label="Age/Gender" value={`${record.age || '-'}y / ${record.gender || record.sex || record.sex_type || 'M'}`} icon={<User size={12} />} />
-            <InfoItem label="Contact" value={record.mobile_number || record.mobile || record.contact || record.phone || '-'} icon={<Phone size={12} />} />
+            <InfoItem label="Contact" value={String(getPatientMobile(record) || '-')} icon={<Phone size={12} />} />
             <InfoItem label="Occupation" value={record.occupation || '-'} icon={<Briefcase size={12} />} />
             <InfoItem label="Date" value={formatDate(recordDate)} icon={<Calendar size={12} />} />
           </div>
@@ -1010,7 +1047,7 @@ const Modal = ({ record, onClose, onEdit }) => {
 
           {/* Clinical Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <DataBlock label="Chief Complaint" value={record.chief_complaint || record.complaint} icon={<FileWarning size={12} />} />
+            <DataBlock label="Chief Complaint" value={getComplaint(record)} icon={<FileWarning size={12} />} />
             <DataBlock label="Medical History" value={record.medical_history || record.history} icon={<HeartPulse size={12} />} />
           </div>
 
