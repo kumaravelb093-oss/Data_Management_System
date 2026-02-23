@@ -4,7 +4,7 @@ import {
   CheckCircle2, AlertCircle, X, FileText, Calendar,
   ClipboardList, User, Home, Search, RefreshCw,
   Plus, Eye, RotateCcw, Play, Square, Edit3, Upload, File,
-  ChevronRight, Activity, Database, Users, TrendingUp, Printer,
+  ChevronRight, ChevronDown, Activity, Database, Users, TrendingUp, Printer,
   Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning, PlusCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -281,8 +281,8 @@ const App = () => {
 const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [expandedId, setExpandedId] = useState(null);
 
-  // Optimized: Memoize stats calculation with proper date parsing
   const stats = useMemo(() => ({
     today: records.filter(r => isToday(getRecordDate(r))).length,
     op: records.filter(r => getServiceType(r) === 'OP').length,
@@ -290,7 +290,6 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
     total: records.length
   }), [records]);
 
-  // Optimized: Memoize filtered records
   const filtered = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     return records.filter(r => {
@@ -298,20 +297,23 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
       const mobile = String(getPatientMobile(r));
       const id = String(getPatientId(r));
       const complaint = getComplaint(r);
-
       const matchesSearch = search === '' || (
         name.toLowerCase().includes(search) ||
         mobile.includes(search) ||
         id.toLowerCase().includes(search) ||
         complaint.toLowerCase().includes(search)
       );
-
       const sector = getServiceType(r);
       const matchesTab = activeTab === 'All' || sector === activeTab;
-
       return matchesSearch && matchesTab;
     });
   }, [records, searchTerm, activeTab]);
+
+  const toggleExpand = (idx) => setExpandedId(expandedId === idx ? null : idx);
+
+  // Color seed for patient avatar
+  const avatarColors = ['bg-orange-500', 'bg-sky-500', 'bg-emerald-500', 'bg-violet-500', 'bg-rose-500', 'bg-amber-500', 'bg-teal-500', 'bg-indigo-500'];
+  const getAvatarColor = (name) => avatarColors[Math.abs((name || '').charCodeAt(0) - 65) % avatarColors.length];
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6">
@@ -325,32 +327,39 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
       </div>
 
       {/* Tabs + Search Row */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex gap-4 md:gap-6 overflow-x-auto no-scrollbar">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
           {['All', 'OP', 'IP'].map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-2 text-[11px] md:text-sm font-black tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-dark-orange' : 'text-slate-500'
+              onClick={() => { setActiveTab(tab); setExpandedId(null); }}
+              className={`px-4 py-2 text-[11px] md:text-xs font-black tracking-wider uppercase rounded-lg transition-all ${activeTab === tab
+                  ? 'bg-white text-dark-orange shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
               {tab}
-              {activeTab === tab && (
-                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-dark-orange" />
+              {tab !== 'All' && (
+                <span className="ml-1.5 text-[9px] opacity-60">{tab === 'OP' ? stats.op : stats.ip}</span>
               )}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Search patients..."
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange transition-all font-medium text-sm"
+              placeholder="Search by name, mobile, complaint..."
+              className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange transition-all font-medium text-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-all">
+                <X size={14} />
+              </button>
+            )}
           </div>
           <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-dark-orange transition-all bg-white border border-slate-200 rounded-xl shadow-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -358,105 +367,215 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         </div>
       </div>
 
-      {/* Mobile Card View + Desktop Table */}
-      <div className="glass-card overflow-hidden">
-        {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-slate-100">
-          {filtered.slice(0, 50).map((record, i) => (
-            <div key={i} className="p-4 flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
-                    }`}>
-                    {getServiceType(record)}
-                  </span>
-                  <span className="text-[10px] font-black text-slate-500">{formatDate(getRecordDate(record))}</span>
-                </div>
-                <h3 className="font-black text-slate-900 text-sm truncate">{getPatientName(record)}</h3>
-                <p className="text-[11px] font-bold text-slate-600 mt-0.5">{record.age || '-'}y • {getPatientMobile(record) || '-'}</p>
-                {getComplaint(record) && (
-                  <p className="text-[11px] font-bold text-slate-500 mt-1 truncate italic">"{getComplaint(record)}"</p>
-                )}
-              </div>
-              {/* Mobile Action Buttons */}
-              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <button
-                  onClick={() => onViewRecord(record)}
-                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-orange-100 hover:text-dark-orange transition-all"
-                >
-                  <Eye size={14} />
-                </button>
-                <button
-                  onClick={() => onEditRecord(record)}
-                  className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-amber-100 hover:text-amber-600 transition-all"
-                >
-                  <Edit3 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-          {filtered.length === 0 && !loading && (
-            <div className="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No records found</div>
-          )}
+      {/* Result Count */}
+      {searchTerm && (
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          {filtered.length} result{filtered.length !== 1 ? 's' : ''} found
         </div>
+      )}
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full patient-table border-collapse">
-            <thead>
-              <tr className="bg-slate-100 italic">
-                <th className="text-slate-700 font-black">Date</th>
-                <th className="text-slate-700 font-black">Name</th>
-                <th className="text-slate-700 font-black">Age</th>
-                <th className="text-slate-700 font-black">Sector</th>
-                <th className="text-slate-700 font-black">Chief Complaint</th>
-                <th className="text-slate-700 font-black">Contact</th>
-                <th className="text-center text-slate-700 font-black">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.slice(0, 100).map((record, i) => (
-                <tr key={i} className="table-row hover:bg-slate-50">
-                  <td className="whitespace-nowrap text-xs">
-                    <div>{formatDate(getRecordDate(record))}</div>
-                    <div className="text-[9px] text-slate-400">{formatTime(getRecordDate(record))}</div>
-                  </td>
-                  <td className="font-bold text-slate-900">{getPatientName(record)}</td>
-                  <td>{record.age || '-'}y/{(record.gender || record.sex || record.sex_type || 'M')?.[0]}</td>
-                  <td>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
-                      }`}>
-                      {getServiceType(record)}
-                    </span>
-                  </td>
-                  <td className="max-w-[200px] truncate text-slate-500 text-xs">{getComplaint(record) || '-'}</td>
-                  <td className="text-xs">{getPatientMobile(record) || '-'}</td>
-                  <td>
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onViewRecord(record); }}
-                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 hover:text-navy transition-all"
-                        title="View Details"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onEditRecord(record); }}
-                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-amber-100 hover:text-amber-600 transition-all"
-                        title="Edit Record"
-                      >
-                        <Edit3 size={14} />
-                      </button>
+      {/* Expandable Patient List */}
+      <div className="space-y-2">
+        {filtered.length === 0 && !loading && (
+          <div className="glass-card py-16 text-center">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Search size={24} className="text-slate-300" />
+            </div>
+            <p className="text-sm font-bold text-slate-400">No records found</p>
+            <p className="text-[10px] text-slate-300 mt-1">Try adjusting your search or filters</p>
+          </div>
+        )}
+
+        <AnimatePresence>
+          {filtered.slice(0, 100).map((record, i) => {
+            const isExpanded = expandedId === i;
+            const pName = getPatientName(record);
+            const pMobile = getPatientMobile(record);
+            const pType = getServiceType(record);
+            const pComplaint = getComplaint(record);
+            const pDate = getRecordDate(record);
+            const initial = (pName || '?')[0].toUpperCase();
+
+            return (
+              <motion.div
+                key={getPatientId(record) || i}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: i * 0.02 }}
+                className={`bg-white rounded-2xl border transition-all overflow-hidden ${isExpanded
+                    ? 'border-dark-orange/30 shadow-lg shadow-orange-500/5'
+                    : 'border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200'
+                  }`}
+              >
+                {/* Collapsed Row — Always Visible */}
+                <button
+                  onClick={() => toggleExpand(i)}
+                  className="w-full px-4 py-3.5 flex items-center gap-3 text-left group"
+                >
+                  {/* Avatar */}
+                  <div className={`w-10 h-10 md:w-11 md:h-11 ${getAvatarColor(pName)} rounded-xl flex items-center justify-center text-white font-black text-sm md:text-base shadow-sm flex-shrink-0`}>
+                    {initial}
+                  </div>
+
+                  {/* Main Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-slate-900 text-sm truncate">{pName || 'Unnamed'}</h3>
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex-shrink-0 ${pType === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-navy'
+                        }`}>{pType}</span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && !loading && (
-                <tr><td colSpan="7" className="py-16 text-center text-slate-400 font-medium">No records found</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-[11px] font-bold text-slate-500">{record.age || '-'}y/{(record.gender || 'M')[0]}</span>
+                      <span className="text-[10px] text-slate-300">•</span>
+                      <span className="text-[11px] font-medium text-slate-400">{formatDate(pDate)}</span>
+                      {pComplaint && (
+                        <>
+                          <span className="text-[10px] text-slate-300 hidden sm:inline">•</span>
+                          <span className="text-[11px] font-medium text-slate-400 truncate max-w-[150px] hidden sm:inline italic">"{pComplaint}"</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expand Arrow */}
+                  <motion.div
+                    animate={{ rotate: isExpanded ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex-shrink-0 text-slate-300 group-hover:text-dark-orange transition-colors"
+                  >
+                    <ChevronDown size={18} />
+                  </motion.div>
+                </button>
+
+                {/* Expanded Details Panel */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 pt-1 border-t border-slate-100">
+                        {/* Quick Details Grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+                          <div className="bg-slate-50 rounded-xl p-3">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">📞 Contact</p>
+                            <p className="text-xs font-bold text-slate-800 truncate">{String(pMobile || '-')}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-3">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🏥 Occupation</p>
+                            <p className="text-xs font-bold text-slate-800 truncate">{record.occupation || '-'}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-3">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">📍 Address</p>
+                            <p className="text-xs font-bold text-slate-800 truncate">{record.address || '-'}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-3">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🕐 Time</p>
+                            <p className="text-xs font-bold text-slate-800">{formatTime(pDate) || formatDate(pDate)}</p>
+                          </div>
+                        </div>
+
+                        {/* Clinical Data */}
+                        {(pComplaint || record.medical_history || record.diagnosis || record.treatment || record.remarks) && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                              <ClipboardList size={10} /> Clinical Summary
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {pComplaint && (
+                                <div className="bg-orange-50/60 rounded-xl p-3 border border-orange-100/50">
+                                  <p className="text-[8px] font-black text-orange-400 uppercase tracking-widest mb-1">Chief Complaint</p>
+                                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{pComplaint}</p>
+                                </div>
+                              )}
+                              {record.diagnosis && (
+                                <div className="bg-sky-50/60 rounded-xl p-3 border border-sky-100/50">
+                                  <p className="text-[8px] font-black text-sky-400 uppercase tracking-widest mb-1">Diagnosis</p>
+                                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{record.diagnosis}</p>
+                                </div>
+                              )}
+                              {record.treatment && (
+                                <div className="bg-emerald-50/60 rounded-xl p-3 border border-emerald-100/50">
+                                  <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Treatment</p>
+                                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{record.treatment}</p>
+                                </div>
+                              )}
+                              {record.medical_history && (
+                                <div className="bg-violet-50/60 rounded-xl p-3 border border-violet-100/50">
+                                  <p className="text-[8px] font-black text-violet-400 uppercase tracking-widest mb-1">Medical History</p>
+                                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{record.medical_history}</p>
+                                </div>
+                              )}
+                              {record.remarks && (
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Remarks</p>
+                                  <p className="text-xs font-medium text-slate-700 leading-relaxed">{record.remarks}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Media Thumbnails */}
+                        {(() => {
+                          const urls = [record.media_url_1, record.media_url_2, record.media_url_3, record.media_url_4].filter(u => u && String(u) !== 'None' && String(u).trim());
+                          if (!urls.length) return null;
+                          return (
+                            <div className="mt-3">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                                <Camera size={10} /> Media ({urls.length})
+                              </p>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {urls.map((url, idx) => (
+                                  <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="w-16 h-12 rounded-lg overflow-hidden border-2 border-slate-100 hover:border-dark-orange transition-all flex-shrink-0 bg-slate-100">
+                                    {url.includes('video') || url.match(/\.(mp4|webm|mov)$/i) ? (
+                                      <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                                        <Play size={12} className="text-white" />
+                                      </div>
+                                    ) : (
+                                      <img src={getViewableImageUrl(url)} className="w-full h-full object-cover" loading="lazy" />
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onViewRecord(record); }}
+                            className="flex-1 py-2.5 bg-navy text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
+                          >
+                            <Eye size={14} /> View Full Profile
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onEditRecord(record); }}
+                            className="flex-1 py-2.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-dark-orange hover:text-dark-orange transition-all"
+                          >
+                            <Edit3 size={14} /> Edit Record
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onViewRecord(record); setTimeout(() => window.print(), 300); }}
+                            className="p-2.5 bg-white border-2 border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-dark-orange hover:border-dark-orange transition-all"
+                            title="Print"
+                          >
+                            <Printer size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
       <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest pb-8">
