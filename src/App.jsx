@@ -495,15 +495,15 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   useEffect(() => {
     if (editData) {
       setFormData({
-        name: editData.patient_name || '',
+        name: editData.patient_name || editData.name || editData.full_name || '',
         age: editData.age || '',
-        gender: editData.gender || 'Male',
-        mobile: editData.mobile_number || '',
-        service_type: editData.service_type || 'OP',
+        gender: editData.gender || editData.sex || 'Male',
+        mobile: editData.mobile_number || editData.mobile || editData.contact || editData.phone || '',
+        service_type: editData.service_type || editData.sector || editData.service || 'OP',
         address: editData.address || '',
         occupation: editData.occupation || '',
-        chief_complaint: recordValue(editData.chief_complaint),
-        medical_history: recordValue(editData.medical_history),
+        chief_complaint: recordValue(editData.chief_complaint || editData.complaint),
+        medical_history: recordValue(editData.medical_history || editData.history),
         diagnosis: recordValue(editData.diagnosis),
         treatment: recordValue(editData.treatment),
         remarks: recordValue(editData.remarks)
@@ -568,7 +568,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         setIsProcessing(true);
         const blob = new Blob(chunks, { type: mimeType });
         const blobUrl = URL.createObjectURL(blob); // Create instant local URL for preview
-        
+
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
@@ -608,27 +608,39 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     setIsSubmitting(true);
     try {
       const payload = {
-        ...formData,
-        patient_id: editData?.patient_id,
-        entry_date_time: editData?.entry_date___time || editData?.entry_date_time,
+        // Map frontend keys to Code.gs expected keys
+        patient_name: formData.name,
+        age: formData.age,
+        gender: formData.gender,
+        mobile_number: formData.mobile,
+        service_type: formData.service_type,
+        address: formData.address,
+        occupation: formData.occupation,
+        chief_complaint: formData.chief_complaint,
+        medical_history: formData.medical_history,
+        diagnosis: formData.diagnosis,
+        treatment: formData.treatment,
+        remarks: formData.remarks,
+        patient_id: editData?.patient_id || `GRU-${Date.now()}`,
+        entry_date_time: editData?.entry_date___time || editData?.entry_date_time || new Date().toISOString(),
         enteredBy: 'Practitioner',
         // Send existing URLs
         media_url_1: mediaSlots[0].url,
         media_url_2: mediaSlots[1].url,
         media_url_3: mediaSlots[2].url,
         media_url_4: mediaSlots[3].url,
-        // Send new base64 uploads
-        media1: mediaSlots[0].base64 ? mediaSlots[0] : null,
-        media2: mediaSlots[1].base64 ? mediaSlots[1] : null,
-        media3: mediaSlots[2].base64 ? mediaSlots[2] : null,
-        media4: mediaSlots[3].base64 ? mediaSlots[3] : null,
-        // Send document upload
-        document_file: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
+        // Send new base64 uploads (Code.gs expects media_1, media_2, etc.)
+        media_1: mediaSlots[0].base64 ? mediaSlots[0] : null,
+        media_2: mediaSlots[1].base64 ? mediaSlots[1] : null,
+        media_3: mediaSlots[2].base64 ? mediaSlots[2] : null,
+        media_4: mediaSlots[3].base64 ? mediaSlots[3] : null,
+        // Send document upload (Code.gs expects 'document')
+        document: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
         document_url: documentFile.url,
       };
       const res = await submitToGas(payload);
-      if (res.success) onSuccess(res.message);
-      else onError(res.error || 'Server rejected');
+      if (res.success || res.status === 'success') onSuccess(res.message || 'Record saved successfully');
+      else onError(res.error || res.message || 'Server rejected');
     } catch (err) { onError('Sync Fail'); }
     finally { setIsSubmitting(false); }
   };
@@ -705,9 +717,16 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                       <div className="w-full h-full relative">
                         {slotMedia.base64 ? (
                           slotMedia.type.startsWith('image') ? (
-                            <img src={slotMedia.base64} className="w-full h-full object-contain" />
+                            <img src={slotMedia.base64} className="w-full h-full object-contain" onClick={(e) => e.stopPropagation()} />
                           ) : (
-                            <video src={slotMedia.previewUrl || slotMedia.base64} className="w-full h-full object-contain" controls autoPlay muted playsInline preload="auto" />
+                            <video
+                              src={slotMedia.previewUrl || slotMedia.base64}
+                              className="w-full h-full object-contain"
+                              controls
+                              playsInline
+                              preload="auto"
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           )
                         ) : (
                           <div className="w-full h-full">
@@ -725,9 +744,10 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                             const updated = [...mediaSlots];
                             updated[idx] = { base64: null, type: null, name: null, url: null };
                             setMediaSlots(updated);
+                            setActiveSlot(idx);
                             startStream();
                           }}
-                          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white"
+                          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white z-10"
                         >
                           <RotateCcw size={16} />
                         </button>
