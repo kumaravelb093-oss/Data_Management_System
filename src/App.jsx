@@ -327,36 +327,34 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
       </div>
 
       {/* Tabs + Search Row */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200/60 pb-1">
+        <div className="flex gap-6 md:gap-8 overflow-x-auto no-scrollbar">
           {['All', 'OP', 'IP'].map(tab => (
             <button
               key={tab}
               onClick={() => { setActiveTab(tab); setExpandedId(null); }}
-              className={`px-4 py-2 text-[11px] md:text-xs font-black tracking-wider uppercase rounded-lg transition-all ${activeTab === tab
-                  ? 'bg-white text-dark-orange shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+              className={`pb-3 text-[11px] md:text-sm font-black tracking-wider uppercase transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-dark-orange' : 'text-slate-400 hover:text-slate-600'
                 }`}
             >
               {tab}
-              {tab !== 'All' && (
-                <span className="ml-1.5 text-[9px] opacity-60">{tab === 'OP' ? stats.op : stats.ip}</span>
+              {activeTab === tab && (
+                <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-dark-orange" />
               )}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 pb-2 md:pb-0">
           <div className="relative flex-1 md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
-              placeholder="Search by name, mobile, complaint..."
-              className="w-full pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange transition-all font-medium text-sm"
+              placeholder="Search patients..."
+              className="w-full pl-9 pr-8 py-2 md:py-2.5 bg-slate-50 md:bg-white border-transparent md:border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-dark-orange transition-all font-medium text-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 transition-all">
+              <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600">
                 <X size={14} />
               </button>
             )}
@@ -374,8 +372,65 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         </div>
       )}
 
-      {/* Expandable Patient List */}
-      <div className="space-y-2">
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50/80 border-b border-slate-100">
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Age</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Sector</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Chief Complaint</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {filtered.slice(0, 100).map((record, i) => (
+              <tr key={getPatientId(record) || i} className="hover:bg-slate-50/50 transition-colors group">
+                <td className="px-6 py-4">
+                  <div className="text-xs font-black text-slate-700">{formatDate(getRecordDate(record))}</div>
+                  <div className="text-[9px] font-bold text-slate-400 mt-0.5">{formatTime(getRecordDate(record))}</div>
+                </td>
+                <td className="px-6 py-4 text-sm font-black text-slate-800">{getPatientName(record)}</td>
+                <td className="px-6 py-4 text-[11px] font-bold text-slate-600">
+                  {record.age || '-'}/{(record.gender || 'M')[0]}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
+                    {getServiceType(record)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 max-w-[200px] truncate text-[11px] font-medium text-slate-500 italic">
+                  {getComplaint(record) ? `"${getComplaint(record)}"` : '-'}
+                </td>
+                <td className="px-6 py-4 text-[11px] font-bold text-slate-500">
+                  {String(getPatientMobile(record) || '-')}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => onViewRecord(record)} className="p-1.5 hover:bg-white hover:text-dark-orange hover:shadow-sm rounded-lg transition-all" title="View Profile">
+                      <Eye size={16} />
+                    </button>
+                    <button onClick={() => onEditRecord(record)} className="p-1.5 hover:bg-white hover:text-amber-600 hover:shadow-sm rounded-lg transition-all" title="Edit Record">
+                      <Edit3 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && !loading && (
+          <div className="py-20 text-center">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No matching records</p>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile-Only Expandable Patient List */}
+      <div className="md:hidden space-y-2">
         {filtered.length === 0 && !loading && (
           <div className="glass-card py-16 text-center">
             <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -587,13 +642,13 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
 };
 
 const StatItem = ({ label, value, icon, color }) => (
-  <div className="bg-white p-3 md:p-5 rounded-xl md:rounded-2xl border border-slate-200 flex items-center justify-between gap-2 shadow-sm">
+  <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-100 flex items-center justify-between shadow-sm">
     <div>
-      <p className="text-[9px] md:text-[10px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1">{label}</p>
-      <p className="text-lg md:text-2xl font-black text-slate-900 leading-none">{value}</p>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{label}</p>
+      <p className="text-xl md:text-3xl font-black text-slate-900 leading-none">{value}</p>
     </div>
-    <div className={`p-2 md:p-3 rounded-lg md:rounded-xl bg-slate-50 ${color}`}>
-      {icon}
+    <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center bg-slate-50 ${color} shadow-inner`}>
+      {React.cloneElement(icon, { size: 24, strokeWidth: 3 })}
     </div>
   </div>
 );
