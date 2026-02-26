@@ -141,6 +141,41 @@ const getComplaint = (record) => {
   return record.chief_complaint || record.complaint || '';
 };
 
+/**
+ * UTILITY: Compress Image using Canvas
+ * Resizes to max 1280px and compresses to 0.7 quality
+ */
+const compressImage = (base64Str, maxWidth = 1280, maxHeight = 1280, quality = 0.7) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(base64Str); // Fallback to original if error
+  });
+};
+
 const App = () => {
   const [view, setView] = useState('home');
   const [records, setRecords] = useState([]);
@@ -467,6 +502,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const [documentFile, setDocumentFile] = useState({ base64: null, type: null, name: null, url: null });
   const [activeSlot, setActiveSlot] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
@@ -609,7 +645,21 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitStatus('Preparing...');
+    
     try {
+      // 1. Process and Compress Media (Image compression happens here)
+      const processedMediaSlots = await Promise.all(mediaSlots.map(async (slot, i) => {
+        if (slot.base64 && slot.type.startsWith('image')) {
+          setSubmitStatus(`Compressing File ${i + 1}...`);
+          const compressed = await compressImage(slot.base64);
+          return { ...slot, base64: compressed };
+        }
+        return slot;
+      }));
+
+      setSubmitStatus('Contacting Server...');
+
       // Resolve patient_id: use existing ID for edits, generate new for new records
       const resolvedId = editData ? getPatientId(editData) : `GRU-${Date.now()}`;
       // Resolve date: keep original date for edits, use current for new records
@@ -633,25 +683,37 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         entry_date_time: resolvedDate,
         enteredBy: 'Practitioner',
         // Send existing URLs
-        media_url_1: mediaSlots[0].url || 'None',
-        media_url_2: mediaSlots[1].url || 'None',
-        media_url_3: mediaSlots[2].url || 'None',
-        media_url_4: mediaSlots[3].url || 'None',
+        media_url_1: processedMediaSlots[0].url || 'None',
+        media_url_2: processedMediaSlots[1].url || 'None',
+        media_url_3: processedMediaSlots[2].url || 'None',
+        media_url_4: processedMediaSlots[3].url || 'None',
         // Send new base64 uploads (Code.gs expects media_1, media_2, etc.)
-        media_1: mediaSlots[0].base64 ? mediaSlots[0] : null,
-        media_2: mediaSlots[1].base64 ? mediaSlots[1] : null,
-        media_3: mediaSlots[2].base64 ? mediaSlots[2] : null,
-        media_4: mediaSlots[3].base64 ? mediaSlots[3] : null,
+        media_1: processedMediaSlots[0].base64 ? processedMediaSlots[0] : null,
+        media_2: processedMediaSlots[1].base64 ? processedMediaSlots[1] : null,
+        media_3: processedMediaSlots[2].base64 ? processedMediaSlots[2] : null,
+        media_4: processedMediaSlots[3].base64 ? processedMediaSlots[3] : null,
         // Send document upload (Code.gs expects 'document')
         document: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
         document_url: documentFile.url || 'None',
       };
+
+      setSubmitStatus('Finalizing Cloud Sync...');
       console.log('[SUBMIT] patient_id:', resolvedId, 'patient_name:', formData.name, 'edit?', !!editData);
+      
       const res = await submitToGas(payload);
-      if (res.success || res.status === 'success') onSuccess(res.message || 'Record saved successfully');
-      else onError(res.error || res.message || 'Server rejected');
-    } catch (err) { console.error('[SUBMIT ERROR]', err); onError('Sync Fail: ' + err.message); }
-    finally { setIsSubmitting(false); }
+      if (res.success || res.status === 'success') {
+        setSubmitStatus('Done!');
+        onSuccess(res.message || 'Record saved successfully');
+      } else {
+        onError(res.error || res.message || 'Server rejected');
+      }
+    } catch (err) { 
+      console.error('[SUBMIT ERROR]', err); 
+      onError('Sync Fail: ' + err.message); 
+    } finally { 
+      setIsSubmitting(false); 
+      setSubmitStatus('');
+    }
   };
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -668,7 +730,35 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 relative">
+        {/* Submission Progress Overlay */}
+        <AnimatePresence>
+          {isSubmitting && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-white/70 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+            >
+              <div className="bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 max-w-sm w-full space-y-6">
+                <div className="relative">
+                  <RefreshCw className="w-16 h-16 text-dark-orange animate-spin mx-auto" strokeWidth={3} />
+                  <Database className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-navy" size={24} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Syncing Patient File</h3>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{submitStatus || 'Working...'}</p>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <p className="text-[10px] font-bold text-slate-400 italic">Optimizing & uploading data to cloud...</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Identity & Contact Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
           <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
