@@ -694,10 +694,25 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     if (!stream || isProcessing) return;
 
     const chunks = [];
-    const mimeTypes = ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm', 'video/mp4'];
+    const mimeTypes = [
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9,opus',
+      'video/webm',
+      'video/mp4;codecs=avc1,mp4a',
+      'video/mp4'
+    ];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
 
     try {
+      // Force enable all audio tracks before starting
+      stream.getAudioTracks().forEach(track => {
+        track.enabled = true;
+        console.log('[RECORD] Forcing audio track active:', track.label);
+      });
+
+      const audioTracks = stream.getAudioTracks();
+      console.log('[RECORD] Starting MediaRecorder with', audioTracks.length, 'audio tracks');
+
       const mr = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mr;
       mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
