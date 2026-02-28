@@ -809,13 +809,13 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         media_url_2: processedMediaSlots[1].url || 'None',
         media_url_3: processedMediaSlots[2].url || 'None',
         media_url_4: processedMediaSlots[3].url || 'None',
-        // Send new base64 uploads (Code.gs expects media_1, media_2, etc.)
-        media_1: processedMediaSlots[0].base64 ? processedMediaSlots[0] : null,
-        media_2: processedMediaSlots[1].base64 ? processedMediaSlots[1] : null,
-        media_3: processedMediaSlots[2].base64 ? processedMediaSlots[2] : null,
-        media_4: processedMediaSlots[3].base64 ? processedMediaSlots[3] : null,
+        // Send new base64 uploads (Only if they are valid data URIs)
+        media_1: (processedMediaSlots[0].base64 && String(processedMediaSlots[0].base64).startsWith('data:')) ? processedMediaSlots[0] : null,
+        media_2: (processedMediaSlots[1].base64 && String(processedMediaSlots[1].base64).startsWith('data:')) ? processedMediaSlots[1] : null,
+        media_3: (processedMediaSlots[2].base64 && String(processedMediaSlots[2].base64).startsWith('data:')) ? processedMediaSlots[2] : null,
+        media_4: (processedMediaSlots[3].base64 && String(processedMediaSlots[3].base64).startsWith('data:')) ? processedMediaSlots[3] : null,
         // Send document upload (Code.gs expects 'document')
-        document: (documentFile.base64 && documentFile.base64.startsWith('data:')) ? documentFile : null,
+        document: (documentFile.base64 && String(documentFile.base64).startsWith('data:')) ? documentFile : null,
         document_url: documentFile.url || 'None',
       };
 
@@ -1102,8 +1102,21 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={onCancel} className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">Cancel</button>
-          <button type="submit" disabled={isSubmitting} className="flex-[2] py-3.5 bg-dark-orange text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-orange-500/20 hover:bg-orange-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-            {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : (editData ? 'Update Record' : 'Save Record')}
+          <button
+            type="submit"
+            disabled={isSubmitting || isProcessing}
+            className="flex-[2] py-3.5 bg-dark-orange text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-orange-500/20 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <RefreshCw className="animate-spin" size={16} />
+            ) : isProcessing ? (
+              <>
+                <RefreshCw className="animate-spin" size={14} />
+                <span>Processing Video...</span>
+              </>
+            ) : (
+              editData ? 'Update Record' : 'Save Record'
+            )}
           </button>
         </div>
       </form>

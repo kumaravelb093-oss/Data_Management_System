@@ -81,11 +81,20 @@ function doPost(e) {
       if (data[mediaKey] && data[mediaKey].base64) {
         const fileData = data[mediaKey];
         const contentType = fileData.type;
-        const base64Data = fileData.base64.split(',')[1];
-        const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileData.name);
-        const file = patientFolder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        mediaUrls[i-1] = file.getUrl();
+        const rawBase64 = fileData.base64;
+        
+        // Robust check for data URI format
+        if (rawBase64 && rawBase64.indexOf(',') !== -1) {
+          const base64Data = rawBase64.split(',')[1];
+          try {
+            const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileData.name);
+            const file = patientFolder.createFile(blob);
+            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            mediaUrls[i-1] = file.getUrl();
+          } catch (e) {
+            console.error('Decoding failed for media ' + i + ': ' + e.toString());
+          }
+        }
       }
     }
 
@@ -93,11 +102,19 @@ function doPost(e) {
     let docUrl = data.document_url || 'None';
     if (data.document && data.document.base64) {
       const docData = data.document;
-      const base64Doc = docData.base64.split(',')[1];
-      const docBlob = Utilities.newBlob(Utilities.base64Decode(base64Doc), docData.type, docData.name);
-      const docFile = patientFolder.createFile(docBlob);
-      docFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      docUrl = docFile.getUrl();
+      const rawBase64Doc = docData.base64;
+      
+      if (rawBase64Doc && rawBase64Doc.indexOf(',') !== -1) {
+        const base64Doc = rawBase64Doc.split(',')[1];
+        try {
+          const docBlob = Utilities.newBlob(Utilities.base64Decode(base64Doc), docData.type, docData.name);
+          const docFile = patientFolder.createFile(docBlob);
+          docFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          docUrl = docFile.getUrl();
+        } catch (e) {
+          console.error('Decoding failed for document: ' + e.toString());
+        }
+      }
     }
 
     // 4. Update Sheet — columns MUST match HEADERS order exactly
