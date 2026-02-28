@@ -629,67 +629,97 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    // PREVENT stream restart if already recording (Race condition fix)
-    if (isRecording) {
-      console.log('[STREAM] Recording active, skipping stream update');
-      return;
-    }
-    
+    // PREVENT stream restart if already recording
+    if (isRecording) return;
+
+    // Only start stream if slot is empty AND we don't already have a valid stream
+    // This allows the stream to PERSIST when switching between empty slots
     if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) {
-      startStream();
+      if (!streamRef.current) {
+        startStream();
+      }
+    } else {
+      // If switching to a slot with media, stop the preview stream
+      stopStream();
     }
-    
+
     return () => {
-      // Only cleanup if NOT recording
-      if (!isRecording) stopStream();
+      // Cleanup is handled by startStream's stopStream() call or explicit stop
     };
   }, [mode, activeSlot, mediaSlots, isRecording]);
 
-  const startStream = async () => {
-    // If recording, don't touch the stream
+  const startStream = async (isRetry = false) => {
     if (isRecording) return;
-    
-    stopStream(); 
-    try {
-      const constraints = {
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: mode === 'video' ? true : false
-      };
 
-      console.log('[STREAM] Requesting stream with mode:', mode);
-      const s = await navigator.mediaDevices.getUserMedia(constraints);
+    // 1. Clear previous errors if this is a fresh start/retry
+    showNotification(null); // Clear any existing sticky notifications
 
-      streamRef.current = s;
-      setStream(s);
+    // 2. Stop existing stream before starting a new one
+    stopStream();
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
+    // TIERED CONSTRAINTS for maximum resilience
+    const constraintTiers = [
+      // Tier 1: Ideal Quality
+      {
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: mode === 'video'
+      },
+      // Tier 2: Standard Compatibility (No resolution lock)
+      {
+        video: { facingMode: 'environment' },
+        audio: mode === 'video'
+      },
+      // Tier 3: Basic (Any camera)
+      {
+        video: true,
+        audio: mode === 'video'
       }
+    ];
 
-      if (mode === 'video') {
-        const audioTracks = s.getAudioTracks();
-        if (audioTracks.length === 0) {
-          showNotification('Microphone not detected. Audio might not be recorded.', 'error');
-        } else {
-          audioTracks.forEach(track => { track.enabled = true; });
+    let lastError = null;
+    for (const constraints of constraintTiers) {
+      try {
+        console.log('[STREAM] Trying constraints:', JSON.stringify(constraints));
+        const s = await navigator.mediaDevices.getUserMedia(constraints);
+
+        streamRef.current = s;
+        setStream(s);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
         }
+
+        if (mode === 'video') {
+          const audioTracks = s.getAudioTracks();
+          if (audioTracks.length === 0) {
+            showNotification('Microphone not detected. Audio might not be recorded.', 'error');
+          } else {
+            audioTracks.forEach(track => { track.enabled = true; });
+          }
+        }
+
+        console.log('[STREAM] Success with constraints:', JSON.stringify(constraints));
+        return; // Success!
+      } catch (err) {
+        lastError = err;
+        console.warn(`[STREAM] Tier failed:`, err.name);
+        continue; // Try next tier
       }
-    } catch (err) {
-      console.warn("[STREAM] Error:", err);
-      showNotification('Camera/Mic access failed.', 'error');
     }
+
+    // If all tiers fail
+    console.error("[STREAM] All tiers failed:", lastError);
+    showNotification('Camera/Mic access failed. Please check permissions.', 'error');
   };
 
   const stopStream = () => {
-    // Never stop stream while recording
     if (isRecording) return;
-    
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[STREAM] Stopped track:', track.kind);
+      });
       streamRef.current = null;
     }
     setStream(null);
@@ -990,8 +1020,23 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                       </div>
                     ) : (
                       isSlotActive ? (
-                        <div className="w-full h-full relative">
+                        <div className="w-full h-full relative group">
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+
+                          {/* Access Error Recovery Overlay */}
+                          {!stream && !isProcessing && (
+                            <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+                              <CameraOff size={40} className="text-slate-600 mb-4" />
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Camera Connection Lost</p>
+                              <button
+                                type="button"
+                                onClick={() => startStream()}
+                                className="px-5 py-2.5 bg-white text-navy rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2 hover:scale-105 transition-all"
+                              >
+                                <RefreshCw size={14} /> Retry Camera
+                              </button>
+                            </div>
+                          )}
 
                           {/* Processing Overlay */}
                           {isProcessing && (
