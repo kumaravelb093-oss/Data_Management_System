@@ -407,44 +407,44 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
         </div>
       )}
 
-      {/* Unified Responsive Table View */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto no-scrollbar">
           <table className="w-full text-left border-collapse min-w-[700px] md:min-w-0">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Age</th>
-                <th className="px-4 md:px-6 py-4 text-[10px) font-black text-slate-400 uppercase tracking-widest text-center">Sector</th>
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Chief Complaint</th>
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
-                <th className="px-4 md:px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Age</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Sector</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Chief Complaint</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filtered.slice(0, 100).map((record, i) => (
                 <tr key={getPatientId(record) || i} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-4 md:px-6 py-4">
+                  <td className="px-6 py-4">
                     <div className="text-xs font-black text-slate-700">{formatDate(getRecordDate(record))}</div>
                     <div className="text-[9px] font-bold text-slate-400 mt-0.5">{formatTime(getRecordDate(record))}</div>
                   </td>
-                  <td className="px-4 md:px-6 py-4 text-sm font-black text-slate-800">{getPatientName(record)}</td>
-                  <td className="px-4 md:px-6 py-4 text-[11px] font-bold text-slate-600">
+                  <td className="px-6 py-4 text-sm font-black text-slate-800">{getPatientName(record)}</td>
+                  <td className="px-6 py-4 text-[11px] font-bold text-slate-600">
                     {record.age || '-'}/{(record.gender || 'M')[0]}
                   </td>
-                  <td className="px-4 md:px-6 py-4 text-center">
+                  <td className="px-6 py-4 text-center">
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${getServiceType(record) === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
                       {getServiceType(record)}
                     </span>
                   </td>
-                  <td className="px-4 md:px-6 py-4 max-w-[150px] md:max-w-[200px] truncate text-[11px] font-medium text-slate-500 italic">
+                  <td className="px-6 py-4 max-w-[200px] truncate text-[11px] font-medium text-slate-500 italic">
                     {getComplaint(record) ? `"${getComplaint(record)}"` : '-'}
                   </td>
-                  <td className="px-4 md:px-6 py-4 text-[11px] font-bold text-slate-500">
+                  <td className="px-6 py-4 text-[11px] font-bold text-slate-500">
                     {String(getPatientMobile(record) || '-')}
                   </td>
-                  <td className="px-4 md:px-6 py-4">
+                  <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => onViewRecord(record)} className="p-1.5 hover:bg-white hover:text-dark-orange hover:shadow-sm rounded-lg transition-all" title="View Profile">
                         <Eye size={16} />
@@ -464,6 +464,76 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No matching records</p>
           </div>
         )}
+      </div>
+
+      {/* Classic Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 && !loading && (
+          <div className="py-20 text-center bg-white rounded-2xl border border-slate-100">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No matching records</p>
+          </div>
+        )}
+
+        {filtered.slice(0, 100).map((record, i) => {
+          const pName = getPatientName(record);
+          const pType = getServiceType(record);
+          const pDate = getRecordDate(record);
+          const pAge = record.age || '-';
+          const pMobile = getPatientMobile(record);
+          const pComplaint = getComplaint(record);
+
+          return (
+            <div key={getPatientId(record) || i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 relative flex items-start justify-between">
+
+              {/* Main Content Area */}
+              <div className="flex-1 pr-12 min-w-0">
+                {/* Header: Badge & Date */}
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${pType === 'IP' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-700'}`}>
+                    {pType}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 tracking-wide">
+                    {formatDate(pDate)}
+                  </span>
+                </div>
+
+                {/* Name */}
+                <h3 className="font-black text-slate-900 text-base tracking-tight mb-1 truncate">
+                  {pName || 'Unnamed'}
+                </h3>
+
+                {/* Info Line: Age & Phone */}
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 mb-1.5 truncate">
+                  <span>{pAge}y</span>
+                  <span className="text-slate-300">•</span>
+                  <span>{String(pMobile || '-')}</span>
+                </div>
+
+                {/* Complaint Line */}
+                <div className="text-[12px] font-medium text-slate-500 italic truncate">
+                  {pComplaint ? `"${pComplaint}"` : ' '}
+                </div>
+              </div>
+
+              {/* Action Buttons Column */}
+              <div className="absolute right-4 top-4 bottom-4 flex flex-col justify-center gap-2 w-10">
+                <button
+                  onClick={() => onViewRecord(record)}
+                  className="w-10 h-10 bg-slate-50/80 hover:bg-slate-100 flex items-center justify-center rounded-xl text-slate-600 transition-colors"
+                >
+                  <Eye size={18} strokeWidth={2.5} />
+                </button>
+                <button
+                  onClick={() => onEditRecord(record)}
+                  className="w-10 h-10 bg-slate-50/80 hover:bg-slate-100 flex items-center justify-center rounded-xl text-slate-500 hover:text-dark-orange transition-colors"
+                >
+                  <Edit3 size={17} strokeWidth={2.5} />
+                </button>
+              </div>
+
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest pb-8">
@@ -646,7 +716,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitStatus('Preparing...');
-    
+
     try {
       // 1. Process and Compress Media (Image compression happens here)
       const processedMediaSlots = await Promise.all(mediaSlots.map(async (slot, i) => {
@@ -699,7 +769,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
       setSubmitStatus('Finalizing Cloud Sync...');
       console.log('[SUBMIT] patient_id:', resolvedId, 'patient_name:', formData.name, 'edit?', !!editData);
-      
+
       const res = await submitToGas(payload);
       if (res.success || res.status === 'success') {
         setSubmitStatus('Done!');
@@ -707,11 +777,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
       } else {
         onError(res.error || res.message || 'Server rejected');
       }
-    } catch (err) { 
-      console.error('[SUBMIT ERROR]', err); 
-      onError('Sync Fail: ' + err.message); 
-    } finally { 
-      setIsSubmitting(false); 
+    } catch (err) {
+      console.error('[SUBMIT ERROR]', err);
+      onError('Sync Fail: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
       setSubmitStatus('');
     }
   };
