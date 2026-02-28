@@ -5,7 +5,7 @@ import {
   ClipboardList, User, Home, Search, RefreshCw,
   Plus, Eye, RotateCcw, Play, Square, Edit3, Upload, File,
   ChevronRight, ChevronDown, Activity, Database, Users, TrendingUp, Printer,
-  Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning, PlusCircle
+  Clock, ArrowRight, UserCircle, Briefcase, HeartPulse, FileWarning, PlusCircle, CameraOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
