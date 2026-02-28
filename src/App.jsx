@@ -629,12 +629,27 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) startStream();
-    return () => stopStream();
-  }, [mode, activeSlot, mediaSlots]);
+    // PREVENT stream restart if already recording (Race condition fix)
+    if (isRecording) {
+      console.log('[STREAM] Recording active, skipping stream update');
+      return;
+    }
+    
+    if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) {
+      startStream();
+    }
+    
+    return () => {
+      // Only cleanup if NOT recording
+      if (!isRecording) stopStream();
+    };
+  }, [mode, activeSlot, mediaSlots, isRecording]);
 
   const startStream = async () => {
-    stopStream(); // Ensure previous stream is cleared
+    // If recording, don't touch the stream
+    if (isRecording) return;
+    
+    stopStream(); 
     try {
       const constraints = {
         video: {
@@ -648,7 +663,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
       console.log('[STREAM] Requesting stream with mode:', mode);
       const s = await navigator.mediaDevices.getUserMedia(constraints);
 
-      streamRef.current = s; // Store in ref for reliable cleanup
+      streamRef.current = s;
       setStream(s);
 
       if (videoRef.current) {
@@ -657,28 +672,24 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
       if (mode === 'video') {
         const audioTracks = s.getAudioTracks();
-        console.log('[STREAM] Audio tracks acquired:', audioTracks.length);
         if (audioTracks.length === 0) {
           showNotification('Microphone not detected. Audio might not be recorded.', 'error');
         } else {
-          audioTracks.forEach(track => {
-            track.enabled = true;
-            console.log('[STREAM] Audio track enabled:', track.label);
-          });
+          audioTracks.forEach(track => { track.enabled = true; });
         }
       }
     } catch (err) {
       console.warn("[STREAM] Error:", err);
-      showNotification('Camera/Mic access failed. Please check permissions.', 'error');
+      showNotification('Camera/Mic access failed.', 'error');
     }
   };
 
   const stopStream = () => {
+    // Never stop stream while recording
+    if (isRecording) return;
+    
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-        console.log('[STREAM] Stopped track:', track.kind);
-      });
+      streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
     setStream(null);
@@ -696,29 +707,27 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   };
 
   const startRecording = () => {
-    if (!stream || isProcessing) return;
+    if (!stream || isProcessing || isRecording) return;
 
     const chunks = [];
     const mimeTypes = [
-      'video/mp4;codecs=avc1,mp4a', // Standard MP4 (Best for iOS/Universal)
-      'video/webm;codecs=vp9,opus', // Modern WebM
-      'video/webm;codecs=vp8,opus', // Wide WebM support
+      'video/mp4;codecs=avc1,mp4a',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
       'video/webm',
       'video/mp4'
     ];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
-    console.log('[RECORD] Using MIME type:', mimeType);
+    console.log('[RECORD] Selected MIME:', mimeType);
 
     try {
-      // Re-check and enable all tracks just before recording starts
-      stream.getTracks().forEach(track => {
-        track.enabled = true;
-        console.log('[RECORD] Ensuring track active:', track.kind, track.label);
-      });
+      // Lock tracks for recording
+      stream.getTracks().forEach(track => { track.enabled = true; });
 
       const mr = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 1500000 // 1.5 Mbps for decent mobile quality
+        videoBitsPerSecond: 800000, // 800kbps - Optimized for storage stability
+        audioBitsPerSecond: 128000  // 128kbps - High quality audio
       });
       mediaRecorderRef.current = mr;
       mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
