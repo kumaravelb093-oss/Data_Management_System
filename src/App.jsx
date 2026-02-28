@@ -634,21 +634,49 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   }, [mode, activeSlot, mediaSlots]);
 
   const startStream = async () => {
+    stopStream(); // Ensure previous stream is cleared
     try {
-      const s = await navigator.mediaDevices.getUserMedia({
+      const constraints = {
         video: { facingMode: 'environment' },
-        audio: mode === 'video'
-      });
+        audio: mode === 'video' ? {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } : false
+      };
+
+      console.log('[STREAM] Requesting stream with mode:', mode);
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
+
+      streamRef.current = s; // Store in ref for reliable cleanup
       setStream(s);
-      if (videoRef.current) videoRef.current.srcObject = s;
-    } catch (err) { console.warn("Cam fail"); }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+      }
+
+      if (mode === 'video') {
+        const audioTracks = s.getAudioTracks();
+        console.log('[STREAM] Audio tracks acquired:', audioTracks.length);
+        if (audioTracks.length === 0) {
+          showNotification('Microphone not detected. Audio might not be recorded.', 'error');
+        }
+      }
+    } catch (err) {
+      console.warn("[STREAM] Error:", err);
+      showNotification('Camera/Mic access failed. Please check permissions.', 'error');
+    }
   };
 
   const stopStream = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+        console.log('[STREAM] Stopped track:', track.kind);
+      });
+      streamRef.current = null;
     }
+    setStream(null);
   };
 
   const capturePhoto = () => {
