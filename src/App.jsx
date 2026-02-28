@@ -666,7 +666,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     if (!stream || isProcessing) return;
 
     const chunks = [];
-    const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+    const mimeTypes = ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm', 'video/mp4'];
     const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
 
     try {
@@ -678,20 +678,29 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         const blob = new Blob(chunks, { type: mimeType });
         const blobUrl = URL.createObjectURL(blob); // Create instant local URL for preview
 
+        // UPDATE STATE INSTANTLY with Blob URL so user can play immediately
+        const instantMedia = {
+          base64: null,
+          type: mimeType,
+          name: `vid_${Date.now()}.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`,
+          previewUrl: blobUrl,
+          url: null
+        };
+        const instantUpdated = [...mediaSlots];
+        instantUpdated[activeSlot] = instantMedia;
+        setMediaSlots(instantUpdated);
+
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
-          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-          const newMedia = {
-            base64: reader.result,
-            type: mimeType,
-            name: `vid_${Date.now()}.${ext}`,
-            previewUrl: blobUrl, // Use local URL for instant playback
-            url: null
-          };
-          const updated = [...mediaSlots];
-          updated[activeSlot] = newMedia;
-          setMediaSlots(updated);
+          const base64Data = reader.result;
+          setMediaSlots(prev => {
+            const updated = [...prev];
+            if (updated[activeSlot]?.previewUrl === blobUrl) {
+              updated[activeSlot] = { ...updated[activeSlot], base64: base64Data };
+            }
+            return updated;
+          });
           setIsProcessing(false);
           showNotification('Video processed successfully');
         };
@@ -893,7 +902,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                               className="w-full h-full object-contain"
                               controls
                               playsInline
-                              preload="auto"
+                              preload="metadata"
                               onClick={(e) => e.stopPropagation()}
                             />
                           )
