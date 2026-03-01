@@ -617,20 +617,24 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    // Only start stream if slot is empty AND we don't already have a valid stream
-    // This allows the stream to PERSIST when switching between empty slots
-    if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) {
+    // Determine if the current slot is empty and needs a camera preview
+    const isEmptySlot = !mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url;
+
+    if (isEmptySlot) {
       if (!streamRef.current) {
+        // No stream exists yet, start it
         startStream();
+      } else {
+        // Stream exists but might not be attached to the new video element (React re-mount)
+        if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
+          console.log('[STREAM] Re-attaching existing stream to video element');
+          videoRef.current.srcObject = streamRef.current;
+        }
       }
     } else {
-      // If switching to a slot with media, stop the preview stream
+      // If switching to a slot with media, stop the preview stream to save resources
       stopStream();
     }
-
-    return () => {
-      // Cleanup is handled by startStream's stopStream() call or explicit stop
-    };
   }, [activeSlot, mediaSlots]);
 
   const startStream = async () => {
