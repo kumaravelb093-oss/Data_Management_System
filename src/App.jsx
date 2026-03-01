@@ -716,26 +716,34 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const startRecording = () => {
     if (!stream) return;
     chunksRef.current = [];
-    const options = { mimeType: 'video/webm;codecs=vp8' };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options.mimeType = 'video/mp4'; // Fallback
-    }
+
+    // Intelligent Codec Selection for Mobile + Desktop Compatibility
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4'
+    ];
+
+    const selectedType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+    console.log('[RECORDER] Using MimeType:', selectedType);
 
     try {
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: selectedType });
       mediaRecorderRef.current.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: options.mimeType });
+        const blob = new Blob(chunksRef.current, { type: selectedType });
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64 = reader.result;
           const updated = [...mediaSlots];
           updated[activeSlot] = {
             base64,
-            type: options.mimeType,
-            name: `vid_${Date.now()}.${options.mimeType.split('/')[1].split(';')[0]}`,
+            type: selectedType,
+            name: `vid_${Date.now()}.${selectedType.includes('mp4') ? 'mp4' : 'webm'}`,
             url: null
           };
           setMediaSlots(updated);
@@ -748,7 +756,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (err) {
-      console.error('Recording Start Error:', err);
+      console.error('[RECORDER] Start Failed:', err);
+      showNotification('Recording failed on this device schema.', 'error');
     }
   };
 
