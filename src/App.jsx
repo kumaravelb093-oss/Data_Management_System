@@ -587,6 +587,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const [captureMode, setCaptureMode] = useState('photo'); // 'photo' or 'video'
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [hasAudio, setHasAudio] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -645,53 +646,41 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
   const startStream = async () => {
     // 1. Clear previous errors if this is a fresh start/retry
-    showNotification(null); // Clear any existing sticky notifications
-
-    // 2. Stop existing stream before starting a new one
+    showNotification(null);
     stopStream();
+    setHasAudio(false);
 
-    // TIERED CONSTRAINTS for maximum resilience (Video + Audio)
+    // TIERED CONSTRAINTS for maximum resilience
     const constraintTiers = [
-      // Tier 1: Ideal Quality
-      {
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true
-      },
-      // Tier 2: Standard Compatibility
-      {
-        video: { facingMode: 'environment' },
-        audio: true
-      },
-      // Tier 3: Basic
-      {
-        video: true,
-        audio: true
-      }
+      // Tier 1: Video + Audio (Ideal)
+      { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true },
+      // Tier 2: Video Only (Fallback if Mic fails)
+      { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      // Tier 3: Basic Video
+      { video: true, audio: false }
     ];
 
     let lastError = null;
     for (const constraints of constraintTiers) {
       try {
-        console.log('[STREAM] Trying constraints:', JSON.stringify(constraints));
+        console.log('[STREAM] Trying:', JSON.stringify(constraints));
         const s = await navigator.mediaDevices.getUserMedia(constraints);
 
         streamRef.current = s;
         setStream(s);
+        setHasAudio(s.getAudioTracks().length > 0);
 
         if (videoRef.current) {
           videoRef.current.srcObject = s;
         }
-
-        console.log('[STREAM] Success with constraints:', JSON.stringify(constraints));
-        return; // Success!
+        return;
       } catch (err) {
         lastError = err;
         console.warn(`[STREAM] Tier failed:`, err.name);
-        continue; // Try next tier
+        // If it's a permission error for Audio, the loop will try Tier 2 (Video Only) next.
       }
     }
 
-    // If all tiers fail
     console.error("[STREAM] All tiers failed:", lastError);
     showNotification('Camera access failed. Please check permissions.', 'error');
   };
@@ -1040,9 +1029,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                             ) : (
                               <div className="flex flex-col items-center gap-2">
                                 {isRecording && (
-                                  <div className="px-3 py-1 bg-rose-500 text-white rounded-full text-[8px] font-black uppercase tracking-[0.2em] animate-pulse flex items-center gap-2">
+                                  <div className="px-3 py-1 bg-rose-500 text-white rounded-full text-[8px] font-black uppercase tracking-[0.2em] animate-pulse flex items-center gap-2 shadow-lg">
                                     <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                                    Recording {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                                    {hasAudio ? 'REC + AUDIO' : 'REC (VIDEO ONLY)'} {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
                                   </div>
                                 )}
                                 <button
