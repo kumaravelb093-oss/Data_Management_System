@@ -573,31 +573,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const [activeSlot, setActiveSlot] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const timerRef = useRef(null);
-  const [mode, setMode] = useState('camera'); // 'camera' or 'video'
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
   const [stream, setStream] = useState(null);
-
-  useEffect(() => {
-    if (isRecording) {
-      timerRef.current = setInterval(() => setRecordTime(p => p + 1), 1000);
-    } else {
-      clearInterval(timerRef.current);
-      setRecordTime(0);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [isRecording]);
-
-  const formatRecordTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   useEffect(() => {
     if (editData) {
@@ -629,9 +607,6 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    // PREVENT stream restart if already recording
-    if (isRecording) return;
-
     // Only start stream if slot is empty AND we don't already have a valid stream
     // This allows the stream to PERSIST when switching between empty slots
     if (!mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url) {
@@ -646,33 +621,28 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     return () => {
       // Cleanup is handled by startStream's stopStream() call or explicit stop
     };
-  }, [mode, activeSlot, mediaSlots, isRecording]);
+  }, [activeSlot, mediaSlots]);
 
-  const startStream = async (isRetry = false) => {
-    if (isRecording) return;
-
+  const startStream = async () => {
     // 1. Clear previous errors if this is a fresh start/retry
     showNotification(null); // Clear any existing sticky notifications
 
     // 2. Stop existing stream before starting a new one
     stopStream();
 
-    // TIERED CONSTRAINTS for maximum resilience
+    // TIERED CONSTRAINTS for maximum resilience (Video only, no Microphone needed)
     const constraintTiers = [
       // Tier 1: Ideal Quality
       {
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: mode === 'video'
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
       },
       // Tier 2: Standard Compatibility (No resolution lock)
       {
-        video: { facingMode: 'environment' },
-        audio: mode === 'video'
+        video: { facingMode: 'environment' }
       },
       // Tier 3: Basic (Any camera)
       {
-        video: true,
-        audio: mode === 'video'
+        video: true
       }
     ];
 
@@ -689,15 +659,6 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           videoRef.current.srcObject = s;
         }
 
-        if (mode === 'video') {
-          const audioTracks = s.getAudioTracks();
-          if (audioTracks.length === 0) {
-            showNotification('Microphone not detected. Audio might not be recorded.', 'error');
-          } else {
-            audioTracks.forEach(track => { track.enabled = true; });
-          }
-        }
-
         console.log('[STREAM] Success with constraints:', JSON.stringify(constraints));
         return; // Success!
       } catch (err) {
@@ -709,12 +670,10 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
     // If all tiers fail
     console.error("[STREAM] All tiers failed:", lastError);
-    showNotification('Camera/Mic access failed. Please check permissions.', 'error');
+    showNotification('Camera access failed. Please check permissions.', 'error');
   };
 
   const stopStream = () => {
-    if (isRecording) return;
-
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -736,77 +695,6 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     setMediaSlots(updated);
   };
 
-  const startRecording = () => {
-    if (!stream || isProcessing || isRecording) return;
-
-    const chunks = [];
-    const mimeTypes = [
-      'video/mp4;codecs=avc1,mp4a',
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm',
-      'video/mp4'
-    ];
-    const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
-    console.log('[RECORD] Selected MIME:', mimeType);
-
-    try {
-      // Lock tracks for recording
-      stream.getTracks().forEach(track => { track.enabled = true; });
-
-      const mr = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: 800000, // 800kbps - Optimized for storage stability
-        audioBitsPerSecond: 128000  // 128kbps - High quality audio
-      });
-      mediaRecorderRef.current = mr;
-      mr.ondataavailable = (e) => (e.data.size > 0) && chunks.push(e.data);
-      mr.onstop = () => {
-        setIsProcessing(true);
-        const blob = new Blob(chunks, { type: mimeType });
-        const blobUrl = URL.createObjectURL(blob); // Create instant local URL for preview
-
-        // UPDATE STATE INSTANTLY with Blob URL so user can play immediately
-        const instantMedia = {
-          base64: null,
-          type: mimeType,
-          name: `vid_${Date.now()}.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`,
-          previewUrl: blobUrl,
-          url: null
-        };
-        const instantUpdated = [...mediaSlots];
-        instantUpdated[activeSlot] = instantMedia;
-        setMediaSlots(instantUpdated);
-
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const base64Data = reader.result;
-          setMediaSlots(prev => {
-            const updated = [...prev];
-            if (updated[activeSlot]?.previewUrl === blobUrl) {
-              updated[activeSlot] = { ...updated[activeSlot], base64: base64Data };
-            }
-            return updated;
-          });
-          setIsProcessing(false);
-          showNotification('Video processed successfully');
-        };
-      };
-
-      mr.start();
-      setIsRecording(true);
-    } catch (err) {
-      showNotification('Recording failed to start', 'error');
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1024,7 +912,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
                           {/* Access Error Recovery Overlay */}
-                          {!stream && !isProcessing && (
+                          {!stream && (
                             <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
                               <CameraOff size={40} className="text-slate-600 mb-4" />
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Camera Connection Lost</p>
@@ -1038,46 +926,10 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                             </div>
                           )}
 
-                          {/* Processing Overlay */}
-                          {isProcessing && (
-                            <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                              <RefreshCw className="animate-spin text-dark-orange" size={40} />
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white animate-pulse">Processing Video...</p>
-                            </div>
-                          )}
-
-                          {/* Recording Feedback Overlay */}
-                          {isRecording && (
-                            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/20 z-10">
-                              <div className="w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-                              <span className="text-[10px] font-black text-white uppercase tracking-widest">{formatRecordTime(recordTime)}</span>
-                              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Live</span>
-                            </div>
-                          )}
-
                           <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4 z-10">
-                            {!isRecording && !isProcessing && (
-                              <div className="flex bg-black/40 backdrop-blur-xl p-1 rounded-xl border border-white/20">
-                                <button type="button" onClick={() => setMode('camera')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Photo</button>
-                                <button type="button" onClick={() => setMode('video')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'video' ? 'bg-white text-navy shadow-xl' : 'text-white/70 hover:text-white'}`}>Video</button>
-                              </div>
-                            )}
-
-                            {!isProcessing && (
-                              mode === 'camera' ? (
-                                <button type="button" onClick={capturePhoto} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
-                                  <Camera size={26} className="text-dark-orange" />
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={isRecording ? stopRecording : startRecording}
-                                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 transition-all ${isRecording ? 'bg-rose-500 scale-110 shadow-rose-500/20' : 'bg-white'}`}
-                                >
-                                  {isRecording ? <Square size={22} className="text-white fill-white" /> : <Play size={24} className="text-dark-orange ml-1" />}
-                                </button>
-                              )
-                            )}
+                            <button type="button" onClick={capturePhoto} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
+                              <Camera size={26} className="text-dark-orange" />
+                            </button>
                           </div>
                         </div>
                       ) : (
