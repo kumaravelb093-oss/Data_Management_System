@@ -624,13 +624,17 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   }, []);
 
   useEffect(() => {
-    // Auto-attach stream to video element whenever an empty slot becomes active
-    const isEmptySlot = !mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url;
-    if (isEmptySlot && stream && videoRef.current) {
-      if (videoRef.current.srcObject !== stream) {
-        videoRef.current.srcObject = stream;
+    // Bulletproof Attachment: Retry every 100ms if the video element is missing but needed
+    const attachInterval = setInterval(() => {
+      const isEmptySlot = !mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url;
+      if (isEmptySlot && stream && videoRef.current) {
+        if (videoRef.current.srcObject !== stream) {
+          console.log('[STREAM] Attaching to video element...');
+          videoRef.current.srcObject = stream;
+        }
       }
-    }
+    }, 100);
+    return () => clearInterval(attachInterval);
   }, [activeSlot, mediaSlots, stream]);
 
   const startStream = async () => {
@@ -919,8 +923,16 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                       </div>
                     ) : (
                       isSlotActive ? (
-                        <div className="w-full h-full relative group">
+                        <div className="w-full h-full relative group bg-black">
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+
+                          {/* Camera Status Overlay */}
+                          <div className="absolute top-4 left-4 flex items-center gap-2 z-20">
+                            <div className={`w-2 h-2 rounded-full ${stream ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest drop-shadow-md">
+                              {stream ? 'Camera Live' : 'Connecting...'}
+                            </span>
+                          </div>
 
                           {/* Visual Flash Effect */}
                           <AnimatePresence>
