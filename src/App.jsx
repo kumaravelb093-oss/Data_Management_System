@@ -1016,16 +1016,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           <button type="button" onClick={onCancel} className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">Cancel</button>
           <button
             type="submit"
-            disabled={isSubmitting || isProcessing}
+            disabled={isSubmitting}
             className="flex-[2] py-3.5 bg-dark-orange text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-orange-500/20 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <RefreshCw className="animate-spin" size={16} />
-            ) : isProcessing ? (
-              <>
-                <RefreshCw className="animate-spin" size={14} />
-                <span>Processing Video...</span>
-              </>
             ) : (
               editData ? 'Update Record' : 'Save Record'
             )}
