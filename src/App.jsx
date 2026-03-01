@@ -82,7 +82,7 @@ const isToday = (dateValue) => {
 
 // Helper: Convert Google Drive URL to viewable image thumbnail
 const getViewableImageUrl = (url) => {
-  if (!url) return null;
+  if (!url || String(url) === 'None' || !String(url).startsWith('http')) return null;
   const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
   const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
   if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
@@ -91,7 +91,7 @@ const getViewableImageUrl = (url) => {
 
 // Helper: Convert Google Drive URL to direct streamable link for <video>
 const getStreamableFileUrl = (url) => {
-  if (!url) return null;
+  if (!url || String(url) === 'None' || !String(url).startsWith('http')) return null;
   const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
   const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
   if (id) return `https://docs.google.com/uc?id=${id}&export=download`;
@@ -100,7 +100,7 @@ const getStreamableFileUrl = (url) => {
 
 // Helper: Convert Google Drive URL to embedded preview viewer (more reliable for playback)
 const getEmbedViewerUrl = (url) => {
-  if (!url) return null;
+  if (!url || String(url) === 'None' || !String(url).startsWith('http')) return null;
   const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
   const id = driveMatch ? (driveMatch[1] || driveMatch[2]) : null;
   if (id) return `https://drive.google.com/file/d/${id}/preview`;
@@ -859,8 +859,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           <div className="space-y-4">
             {[0, 1, 2, 3].map((idx) => {
               const isSlotActive = activeSlot === idx;
-              const slotMedia = mediaSlots[idx];
-              const hasMedia = !!(slotMedia.base64 || slotMedia.url);
+              const slotMedia = mediaSlots[idx] || { base64: null, url: null };
+              const hasMedia = !!(slotMedia.base64 || (slotMedia.url && String(slotMedia.url) !== 'None'));
 
               return (
                 <div
