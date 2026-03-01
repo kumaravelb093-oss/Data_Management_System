@@ -650,19 +650,22 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     // 2. Stop existing stream before starting a new one
     stopStream();
 
-    // TIERED CONSTRAINTS for maximum resilience (Video only, no Microphone needed)
+    // TIERED CONSTRAINTS for maximum resilience (Video + Audio)
     const constraintTiers = [
       // Tier 1: Ideal Quality
       {
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true
       },
-      // Tier 2: Standard Compatibility (No resolution lock)
+      // Tier 2: Standard Compatibility
       {
-        video: { facingMode: 'environment' }
+        video: { facingMode: 'environment' },
+        audio: true
       },
-      // Tier 3: Basic (Any camera)
+      // Tier 3: Basic
       {
-        video: true
+        video: true,
+        audio: true
       }
     ];
 
