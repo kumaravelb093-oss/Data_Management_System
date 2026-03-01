@@ -870,17 +870,12 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                     {hasMedia ? (
                       <div className="w-full h-full relative">
                         {slotMedia.base64 ? (
-                          slotMedia.type.startsWith('image') ? (
+                          slotMedia.type?.startsWith('image') ? (
                             <img src={slotMedia.base64} className="w-full h-full object-contain" onClick={(e) => e.stopPropagation()} />
                           ) : (
-                            <video
-                              src={slotMedia.previewUrl || slotMedia.base64}
-                              className="w-full h-full object-contain"
-                              controls
-                              playsInline
-                              preload="metadata"
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                              <File size={40} className="text-white opacity-50" />
+                            </div>
                           )
                         ) : (
                           <div className="w-full h-full">
