@@ -1,6 +1,6 @@
 /**
- * BACKEND VERSION: 14.0 (Performance & Reliability)
- * OPTIMIZED FOR: High-Speed Clinical Sync
+ * BACKEND VERSION: 14.1 (Video & Multimedia Optimized)
+ * OPTIMIZED FOR: Clincal Photo & Video Documentation
  */
 
 function doPost(e) {
@@ -79,7 +79,7 @@ function doPost(e) {
 function uploadFile(fileObj, folderId, existingUrl) {
   if (!fileObj || !fileObj.base64) return existingUrl || 'None';
   try {
-    const contentType = fileObj.type || 'application/octet-stream';
+    let contentType = fileObj.type || 'application/octet-stream';
     const base64Data = fileObj.base64.split(',')[1];
     const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileObj.name || 'attachment');
     const folder = DriveApp.getFolderById(folderId);

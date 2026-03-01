@@ -584,8 +584,14 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
   const [showFlash, setShowFlash] = useState(false);
+  const [captureMode, setCaptureMode] = useState('photo'); // 'photo' or 'video'
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
   const [stream, setStream] = useState(null);
 
   useEffect(() => {
@@ -713,6 +719,53 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     const updated = [...mediaSlots];
     updated[activeSlot] = newMedia;
     setMediaSlots(updated);
+  };
+
+  const startRecording = () => {
+    if (!stream) return;
+    chunksRef.current = [];
+    const options = { mimeType: 'video/webm;codecs=vp8' };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options.mimeType = 'video/mp4'; // Fallback
+    }
+
+    try {
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: options.mimeType });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result;
+          const updated = [...mediaSlots];
+          updated[activeSlot] = {
+            base64,
+            type: options.mimeType,
+            name: `vid_${Date.now()}.${options.mimeType.split('/')[1].split(';')[0]}`,
+            url: null
+          };
+          setMediaSlots(updated);
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    } catch (err) {
+      console.error('Recording Start Error:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+    }
   };
 
 
@@ -889,23 +942,17 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                   <div className="aspect-video bg-slate-900 relative">
                     {hasMedia ? (
                       <div className="w-full h-full relative">
-                        {slotMedia.base64 ? (
-                          slotMedia.type?.startsWith('image') ? (
-                            <img src={slotMedia.base64} className="w-full h-full object-contain" onClick={(e) => e.stopPropagation()} />
-                          ) : (
-                            <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                              <File size={40} className="text-white opacity-50" />
-                            </div>
-                          )
-                        ) : (
-                          <div className="w-full h-full">
-                            {slotMedia.url.includes('video') || slotMedia.url.match(/\.(mp4|webm|mov|ogg)$/i) ? (
-                              <iframe src={getEmbedViewerUrl(slotMedia.url)} className="w-full h-full border-0" allow="autoplay" title={`Shot ${idx + 1}`} />
+                        <div className="w-full h-full">
+                          {slotMedia.type?.startsWith('video') || slotMedia.url?.includes('video') || slotMedia.url?.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                            slotMedia.base64 ? (
+                              <video src={slotMedia.base64} className="w-full h-full object-contain" controls onClick={(e) => e.stopPropagation()} />
                             ) : (
-                              <img src={getViewableImageUrl(slotMedia.url)} className="w-full h-full object-contain" />
-                            )}
-                          </div>
-                        )}
+                              <iframe src={getEmbedViewerUrl(slotMedia.url)} className="w-full h-full border-0" allow="autoplay" title={`Shot ${idx + 1}`} />
+                            )
+                          ) : (
+                            <img src={slotMedia.base64 || getViewableImageUrl(slotMedia.url)} className="w-full h-full object-contain" />
+                          )}
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -961,10 +1008,49 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                             </div>
                           )}
 
-                          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-4 z-10">
-                            <button type="button" onClick={capturePhoto} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
-                              <Camera size={26} className="text-dark-orange" />
-                            </button>
+                          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-4 z-10">
+                            {/* Mode Switcher */}
+                            {!isRecording && (
+                              <div className="flex bg-black/40 backdrop-blur-md p-1 rounded-full border border-white/20">
+                                <button
+                                  type="button"
+                                  onClick={() => setCaptureMode('photo')}
+                                  className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${captureMode === 'photo' ? 'bg-white text-navy shadow-lg' : 'text-white'}`}
+                                >
+                                  Photo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCaptureMode('video')}
+                                  className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${captureMode === 'video' ? 'bg-white text-navy shadow-lg' : 'text-white'}`}
+                                >
+                                  Video
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Capture/Record Button */}
+                            {captureMode === 'photo' ? (
+                              <button type="button" onClick={capturePhoto} className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30">
+                                <Camera size={26} className="text-dark-orange" />
+                              </button>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2">
+                                {isRecording && (
+                                  <div className="px-3 py-1 bg-rose-500 text-white rounded-full text-[8px] font-black uppercase tracking-[0.2em] animate-pulse flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                    Recording {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={isRecording ? stopRecording : startRecording}
+                                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl active:scale-90 border-4 border-white/30 transition-all ${isRecording ? 'bg-rose-500 scale-110' : 'bg-white'}`}
+                                >
+                                  {isRecording ? <Square size={24} className="text-white fill-white" /> : <Play size={26} className="text-dark-orange ml-1" />}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : (
