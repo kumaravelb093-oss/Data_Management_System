@@ -1,7 +1,6 @@
 /**
- * BACKEND VERSION: 13.0 (Flexible Absolute)
- * OPTIMIZED FOR: Advanced Stability & Data Key Preservation
- * ENSURES: Frontend never crashes due to missing or shifted columns.
+ * BACKEND VERSION: 14.0 (Performance & Reliability)
+ * OPTIMIZED FOR: High-Speed Clinical Sync
  */
 
 function doPost(e) {
@@ -10,7 +9,7 @@ function doPost(e) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('Records') || ss.insertSheet('Records');
     
-    // ENSURE HEADERS EXIST (Strict Canonical Order)
+    // Ensure Headers exist
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         'Patient ID', 'Entry Date/Time', 'Patient Name', 'Age', 'Gender',
@@ -33,7 +32,6 @@ function doPost(e) {
 
     const docUrl = uploadFile(data.document, folderId, data.document_url);
 
-    // Row construction based on logical order
     const rowData = [
       data.patient_id,
       data.entry_date_time,
@@ -68,10 +66,11 @@ function doPost(e) {
       sheet.appendRow(rowData);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Record Synced' }))
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Cloud Sync Complete' }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
+    console.error('DoPost Error:', err);
     return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -82,13 +81,13 @@ function uploadFile(fileObj, folderId, existingUrl) {
   try {
     const contentType = fileObj.type || 'application/octet-stream';
     const base64Data = fileObj.base64.split(',')[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileObj.name);
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileObj.name || 'attachment');
     const folder = DriveApp.getFolderById(folderId);
     const file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return file.getUrl();
   } catch (e) {
-    return 'Upload Error: ' + e.message;
+    return 'Error: ' + e.message;
   }
 }
 
@@ -100,10 +99,6 @@ function getOrSetupFolder() {
   return folder.getId();
 }
 
-/**
- * INTELLIGENT GET: Normalizes keys to ensure frontend compatibility
- * regardless of spreadsheet column shifts.
- */
 function doGet() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -116,10 +111,9 @@ function doGet() {
     const rows = data.slice(1).map(row => {
       const obj = {};
       headers.forEach((h, i) => {
-        // Normalize header to a code-friendly key (e.g., "Patient ID" -> "patient_id")
         const key = String(h).trim().toLowerCase()
-          .replace(/[\/\s()]+/g, '_') // Replace slashes, spaces, parens with underscore
-          .replace(/^_+|_+$/g, '');   // Trim leading/trailing underscores
+          .replace(/[\/\s()]+/g, '_')
+          .replace(/^_+|_+$/g, '');
         obj[key] = row[i];
       });
       return obj;

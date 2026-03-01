@@ -583,6 +583,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const [activeSlot, setActiveSlot] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
+  const [showFlash, setShowFlash] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [stream, setStream] = useState(null);
@@ -694,6 +695,12 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   };
 
   const capturePhoto = () => {
+    if (!videoRef.current || !stream) return;
+
+    // 1. Visual FeedBack: Trigger Flash
+    setShowFlash(true);
+    setTimeout(() => setShowFlash(false), 150);
+
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
@@ -903,7 +910,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                             updated[idx] = { base64: null, type: null, name: null, url: null };
                             setMediaSlots(updated);
                             setActiveSlot(idx);
-                            startStream();
+                            // PERSISTENT: No need to startStream here as it stays alive!
                           }}
                           className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur shadow-lg text-rose-500 rounded-lg hover:bg-white z-10"
                         >
@@ -914,6 +921,18 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                       isSlotActive ? (
                         <div className="w-full h-full relative group">
                           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+
+                          {/* Visual Flash Effect */}
+                          <AnimatePresence>
+                            {showFlash && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-white z-20 pointer-events-none"
+                              />
+                            )}
+                          </AnimatePresence>
 
                           {/* Access Error Recovery Overlay */}
                           {!stream && (
@@ -1031,7 +1050,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           </button>
         </div>
       </form>
-    </motion.div>
+    </motion.div >
   );
 };
 
