@@ -617,25 +617,20 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
   const recordValue = (val) => val === 'No entry documented' || !val ? '' : val;
 
   useEffect(() => {
-    // Determine if the current slot is empty and needs a camera preview
-    const isEmptySlot = !mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url;
+    // Persistent Camera: Start when form opens, Stop when form closes
+    startStream();
+    return () => stopStream();
+  }, []);
 
-    if (isEmptySlot) {
-      if (!streamRef.current) {
-        // No stream exists yet, start it
-        startStream();
-      } else {
-        // Stream exists but might not be attached to the new video element (React re-mount)
-        if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
-          console.log('[STREAM] Re-attaching existing stream to video element');
-          videoRef.current.srcObject = streamRef.current;
-        }
+  useEffect(() => {
+    // Auto-attach stream to video element whenever an empty slot becomes active
+    const isEmptySlot = !mediaSlots[activeSlot]?.base64 && !mediaSlots[activeSlot]?.url;
+    if (isEmptySlot && stream && videoRef.current) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
       }
-    } else {
-      // If switching to a slot with media, stop the preview stream to save resources
-      stopStream();
     }
-  }, [activeSlot, mediaSlots]);
+  }, [activeSlot, mediaSlots, stream]);
 
   const startStream = async () => {
     // 1. Clear previous errors if this is a fresh start/retry
