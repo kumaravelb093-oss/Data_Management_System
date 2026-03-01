@@ -109,6 +109,7 @@ const getEmbedViewerUrl = (url) => {
 
 // Helper: Get record date field (handles different field names)
 const getRecordDate = (record) => {
+  if (!record) return null;
   const val = record.entry_date_time || record.date || record.entry_date___time || record.entry_date__time || record.timestamp || record.entry_date_and_time || record.entry_date;
   // Google Sheets may serialize dates as numbers or Date strings
   if (val && typeof val === 'string' && val.trim() === '') return null;
@@ -117,27 +118,32 @@ const getRecordDate = (record) => {
 
 // Helper: Get patient_id from record (handles different key names)
 const getPatientId = (record) => {
+  if (!record) return '';
   return record.patient_id || record.id || record.patientid || record.patient_Id || '';
 };
 
 // Helper: Get patient name from record
 const getPatientName = (record) => {
+  if (!record) return '';
   return record.patient_name || record.name || record.full_name || record.patient || '';
 };
 
 // Helper: Get mobile from record
 const getPatientMobile = (record) => {
+  if (!record) return '';
   return record.mobile_number || record.mobile || record.contact || record.phone || '';
 };
 
 // Helper: Get service type from record
 const getServiceType = (record) => {
+  if (!record) return 'OP';
   const val = record.service_type || record.sector || record.service || record.type || record.category || '';
   return String(val).trim().toUpperCase() || 'OP';
 };
 
 // Helper: Get complaint from record
 const getComplaint = (record) => {
+  if (!record) return '';
   return record.chief_complaint || record.complaint || '';
 };
 
@@ -198,7 +204,11 @@ const App = () => {
         redirect: 'follow'
       });
       const data = await response.json();
-      setRecords(Array.isArray(data) ? data : []);
+      // CLEAN DATA: Filter out nulls and empty rows (where name is missing)
+      const cleanData = Array.isArray(data)
+        ? data.filter(r => r && (r.patient_id || r.patient_name || r.name))
+        : [];
+      setRecords(cleanData);
     } catch (e) {
       showNotification('Sync Error: Check Authorization', 'error');
     } finally {
