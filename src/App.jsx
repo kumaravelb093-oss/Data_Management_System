@@ -364,7 +364,7 @@ const Dashboard = ({ records, loading, onRefresh, onViewRecord, onEditRecord }) 
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 md:space-y-6">
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <StatItem label="Today" value={stats.today} icon={<Clock size={16} />} color="text-orange-600" />
         <StatItem label="OP" value={stats.op} icon={<TrendingUp size={16} />} color="text-navy" />
         <StatItem label="IP" value={stats.ip} icon={<Activity size={16} />} color="text-orange-700" />
@@ -843,7 +843,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div>
           <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{editData ? 'Modify Record' : 'New Admission'}</h2>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Patient Registration</p>
+          <p className="text-[9px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-widest">Patient Registration</p>
         </div>
         <button onClick={onCancel} className="p-2 text-slate-400 hover:text-slate-900 transition-all bg-white rounded-xl shadow-sm border border-slate-100">
           <X size={18} />
@@ -899,7 +899,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
         {/* Clinical Assessment Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+          <h4 className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
             <HeartPulse size={12} /> Clinical Assessment
           </h4>
           <AreaField label="Chief Complaint" rows={2} value={formData.chief_complaint} onChange={v => updateField('chief_complaint', v)} placeholder="Primary symptoms and concerns..." />
@@ -908,11 +908,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
         {/* Multimedia Section - Vertical Filling */}
         <section className="space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">
+          <h4 className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">
             <Camera size={12} /> Diagnostic Documentation (Up to 4)
           </h4>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[0, 1, 2, 3].map((idx) => {
               const isSlotActive = activeSlot === idx;
               const slotMedia = mediaSlots[idx] || { base64: null, url: null };
@@ -1046,9 +1046,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
                           </div>
                         </div>
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-800 transition-colors">
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-800 transition-colors group-hover:bg-slate-800/10 active:bg-slate-800/20">
                           <PlusCircle size={32} className="mb-2 opacity-50" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">Tap to enable slot {idx + 1}</p>
+                          <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest">Tap to enable slot {idx + 1}</p>
                         </div>
                       )
                     )}
@@ -1061,7 +1061,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
         {/* Document Upload Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+          <h4 className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
             <Upload size={12} /> Supporting Documents (Optional)
           </h4>
           <div className="relative group p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-dark-orange transition-all bg-slate-50/50 flex flex-col items-center justify-center gap-3">
@@ -1115,7 +1115,7 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
 
         {/* Treatment Section */}
         <section className="glass-card p-4 md:p-6 space-y-4">
-          <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
+          <h4 className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
             <ClipboardList size={12} /> Treatment Protocol
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
