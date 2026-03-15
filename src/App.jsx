@@ -1124,9 +1124,9 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AreaField label="Diagnosis" rows={3} value={formData.diagnosis} onChange={v => updateField('diagnosis', v)} placeholder="Clinical diagnosis..." />
             <AreaField label="Treatment" rows={3} value={formData.treatment} onChange={v => updateField('treatment', v)} placeholder="Treatment plan..." />
+            <AreaField label="Remarks" rows={3} value={formData.remarks} onChange={v => updateField('remarks', v)} placeholder="Additional notes..." />
             <AreaField label="Follow up 1" rows={3} value={formData.follow_up_1} onChange={v => updateField('follow_up_1', v)} placeholder="First follow-up notes..." />
             <AreaField label="Follow up 2" rows={3} value={formData.follow_up_2} onChange={v => updateField('follow_up_2', v)} placeholder="Second follow-up notes..." />
-            <AreaField label="Remarks" rows={3} value={formData.remarks} onChange={v => updateField('remarks', v)} placeholder="Additional notes..." />
           </div>
         </section>
 
@@ -1277,9 +1277,9 @@ const Modal = ({ record, onClose, onEdit }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <DataBlock label="Diagnosis" value={record.diagnosis} />
             <DataBlock label="Treatment" value={record.treatment} />
+            <DataBlock label="Remarks" value={record.remarks} />
             <DataBlock label="Follow up 1" value={record.follow_up_1} />
             <DataBlock label="Follow up 2" value={record.follow_up_2} />
-            <DataBlock label="Remarks" value={record.remarks} />
           </div>
 
           {/* Attached Document */}
