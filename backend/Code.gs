@@ -94,7 +94,7 @@ function uploadFile(fileObj, folderId, existingUrl) {
 }
 
 function getOrSetupFolder() {
-  const folderName = 'Guru_Patient_Records';
+  const folderName = 'Hari_Nursing_Home_Records';
   const folders = DriveApp.getFoldersByName(folderName);
   if (folders.hasNext()) return folders.next().getId();
   const folder = DriveApp.createFolder(folderName);
