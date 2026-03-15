@@ -242,7 +242,7 @@ const App = () => {
               <Stethoscope className="text-white" size={20} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-base md:text-xl font-black tracking-tight text-white leading-none">Guru Ortho</h1>
+              <h1 className="text-base md:text-xl font-black tracking-tight text-white leading-none text-wrap">Hari Nursing Home Ortho Care</h1>
               <span className="text-[8px] md:text-[10px] font-bold text-orange-400 uppercase tracking-widest opacity-80 hidden sm:block">Healthcare Management</span>
             </div>
           </div>
@@ -571,7 +571,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
     name: '', age: '', gender: 'Male', mobile: '',
     service_type: 'OP', address: '', occupation: '',
     chief_complaint: '', medical_history: '',
-    diagnosis: '', treatment: '', remarks: ''
+    diagnosis: '', treatment: '', remarks: '',
+    follow_up_1: '', follow_up_2: ''
   });
   const [mediaSlots, setMediaSlots] = useState([
     { base64: null, type: null, name: null, url: null },
@@ -799,6 +800,8 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
         diagnosis: formData.diagnosis,
         treatment: formData.treatment,
         remarks: formData.remarks,
+        follow_up_1: formData.follow_up_1,
+        follow_up_2: formData.follow_up_2,
         patient_id: resolvedId,
         entry_date_time: resolvedDate,
         enteredBy: 'Practitioner',
@@ -1118,9 +1121,11 @@ const RegistrationForm = ({ editData, onSuccess, onError, onCancel, showNotifica
           <h4 className="flex items-center gap-2 text-[9px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-3">
             <ClipboardList size={12} /> Treatment Protocol
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AreaField label="Diagnosis" rows={3} value={formData.diagnosis} onChange={v => updateField('diagnosis', v)} placeholder="Clinical diagnosis..." />
             <AreaField label="Treatment" rows={3} value={formData.treatment} onChange={v => updateField('treatment', v)} placeholder="Treatment plan..." />
+            <AreaField label="Follow up 1" rows={3} value={formData.follow_up_1} onChange={v => updateField('follow_up_1', v)} placeholder="First follow-up notes..." />
+            <AreaField label="Follow up 2" rows={3} value={formData.follow_up_2} onChange={v => updateField('follow_up_2', v)} placeholder="Second follow-up notes..." />
             <AreaField label="Remarks" rows={3} value={formData.remarks} onChange={v => updateField('remarks', v)} placeholder="Additional notes..." />
           </div>
         </section>
@@ -1272,6 +1277,8 @@ const Modal = ({ record, onClose, onEdit }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <DataBlock label="Diagnosis" value={record.diagnosis} />
             <DataBlock label="Treatment" value={record.treatment} />
+            <DataBlock label="Follow up 1" value={record.follow_up_1} />
+            <DataBlock label="Follow up 2" value={record.follow_up_2} />
             <DataBlock label="Remarks" value={record.remarks} />
           </div>
 

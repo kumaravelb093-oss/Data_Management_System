@@ -14,10 +14,10 @@ function doPost(e) {
       sheet.appendRow([
         'Patient ID', 'Entry Date/Time', 'Patient Name', 'Age', 'Gender',
         'Mobile Number', 'Service Type', 'Address', 'Occupation',
-        'Chief Complaint', 'Medical History', 'Diagnosis', 'Treatment', 'Remarks',
+        'Chief Complaint', 'Medical History', 'Diagnosis', 'Treatment', 'Follow up 1', 'Follow up 2', 'Remarks',
         'Media URL 1', 'Media URL 2', 'Media URL 3', 'Media URL 4', 'Document URL'
       ]);
-      sheet.getRange(1, 1, 1, 19).setFontWeight('bold').setBackground('#f3f3f3');
+      sheet.getRange(1, 1, 1, 21).setFontWeight('bold').setBackground('#f3f3f3');
     }
 
     const folderId = getOrSetupFolder();
@@ -46,6 +46,8 @@ function doPost(e) {
       data.medical_history,
       data.diagnosis,
       data.treatment,
+      data.follow_up_1,
+      data.follow_up_2,
       data.remarks,
       mediaUrls[0], mediaUrls[1], mediaUrls[2], mediaUrls[3],
       docUrl
